@@ -10,12 +10,10 @@ import org.gradle.api.artifacts.dsl.RepositoryHandler
 import org.gradle.api.artifacts.repositories.ArtifactRepository
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository
 import org.gradle.api.artifacts.repositories.RepositoryContentDescriptor
-import org.gradle.api.provider.Property
-import org.gradle.api.provider.Provider
 import org.gradle.api.publish.PublishingExtension
-import org.gradle.api.services.BuildService
-import org.gradle.api.services.BuildServiceParameters
+import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.kotlin.dsl.getByName
+import org.gradle.kotlin.dsl.maven
 import org.http4k.client.JavaHttpClient
 import org.http4k.core.*
 import org.http4k.core.Method.*
@@ -26,18 +24,18 @@ import java.util.*
 
 //abstract class MagikPluginExtension(var repo: File)
 
-abstract class GithubContainer : BuildService<GithubContainer.Params>, AutoCloseable {
+//abstract class GithubContainer : BuildService<GithubContainer.Params>, AutoCloseable {
+//
+//    internal interface Params : BuildServiceParameters {
+//        val repositories: Property<ArrayList<GithubArtifactRepository>>
+//    }
+//
+//    init {
+//        parameters.repositories.set(ObjectFactory.listProperty())
+//    }
+//}
 
-    internal interface Params : BuildServiceParameters {
-        val repositories: Property<ArrayList<GithubArtifactRepository>>
-    }
-
-    init {
-        parameters.repositories.set(ArrayList())
-    }
-}
-
-lateinit var githubContainer: Provider<GithubContainer>
+//lateinit var githubContainer: Provider<GithubContainer>
 
 // reference in order to loop and detect automatically the publishing task to append logic to
 val githubs = ArrayList<GithubArtifactRepository>()
@@ -52,18 +50,17 @@ class MagikPlugin : Plugin<Project> {
 
     override fun apply(project: Project) {
 
-//                println(project)
+        //                println(project)
 
         // Register the service
-        githubContainer = project.gradle.sharedServices.registerIfAbsent("githubContainer", GithubContainer::class.java) {}
-
+        //        githubContainer = project.gradle.sharedServices.registerIfAbsent("githubContainer", GithubContainer::class.java) {}
 
         configuringProject = project
 
-        //        if(project.displayName.startsWith("root project '"))
-//        githubs.clear()
+        // we need to clear once at begin of the parsing, otherwise repos will continue gets added over and over again
+        //        if (project.displayName.startsWith("root project '"))
+        githubs.clear()
 
-//        println("a")
         // Add the 'greeting' extension object
         //        project.extensions.create<MagikPluginExtension>("magik", project.layout.buildDirectory.dir("repo").get().asFile)
 
@@ -76,15 +73,16 @@ class MagikPlugin : Plugin<Project> {
 
         //        println(project.tasks.rules.size)
         //        println(githubs.size)
-        //        if (!configured)
         project.tasks.addRule("rule") {
-            //            configured = true
-                        println("addRule, $this")
+            //                        println("addRule, $this")
+            //            println(githubContainer.get())
             project.tasks.all {
                 if (name.startsWith("publish"))
-                    for (gh in githubContainer.get().parameters.repositories.get())
-                        if (name.endsWith("PublicationTo${gh.name.capitalize()}Repository")) {
-                            //                            println("$this, $name")
+                    for (gh in githubs) {
+                        //                        println(githubs.size)
+                        val postFix = "PublicationTo${gh.name.capitalize()}Repository"
+                        if (name.endsWith(postFix)) {
+//                            println("$this, $name")
                             doLast {
                                 //                                println(project.displayName)
 
@@ -110,88 +108,72 @@ class MagikPlugin : Plugin<Project> {
 
                                 // save commit revision
                                 val rev = GET("git/refs/heads").bodyString().sha
-                                                                println(rev)
+//                                println(rev)
 
                                 // create tmp branch via a reference
-//                                POST("git/refs") {
-//                                    body("""{"ref": "refs/heads/tmp", "sha": "$rev"}""")
-//                                }
-//
-//                                val repo = project.extensions.getByName<PublishingExtension>("publishing")
-//                                    .repositories.first { it.name == gh.name } as MavenArtifactRepository
-//                                //                                println(repo)
-//
-//                                // create/update every file on tmp
-//                                val dir = File(repo.url)
-//                                dir.walk().forEach { file ->
-//                                    if (file.isFile) {
-//                                        val path = file.toRelativeString(dir)
-//                                        val response = GET("contents/$path", is404fine = true)
-//                                        val maybeSha = when (response.status) {
-//                                            Status.NOT_FOUND -> ""
-//                                            else -> """, "sha": "${response.bodyString().sha}""""
-//                                        }
-//                                        val content = Base64.getEncoder().encodeToString(file.readBytes())
-//                                        PUT("contents/$path") {
-//                                            body("""{"path": "$path", "message": "$path", "content": "$content", "branch": "tmp"$maybeSha}""")
-//                                        }
-//                                    }
-//                                }
-//
-//                                // create the PR
-//                                POST("pulls") {
-//                                    body("""{"repo":"${gh.repo}","title":"titolo","head":"tmp","base":"master","body":"corpo"}""")
-//                                }
-//
-//                                // retrieve the PR number
-//                                val pr = run {
-//                                    // retrieve all the PRs (it should be just one) and read its number
-//                                    val body = GET("pulls").bodyString()
-//                                    val ofs = body.indexOf(""","number":""") + 10
-//                                    // let's give it a couple of digits, before parsing
-//                                    val number = body.substring(ofs, ofs + 5)
-//                                    number.takeWhile { it.isDigit() }.toInt()
-//                                }
-//
-//                                // the current head on `tmp` branch
-//                                val lastCommit = run {
-//                                    val body = GET("commits/tmp").bodyString()
-//                                    val ofs = body.indexOf("\"sha\":\"") + 7
-//                                    body.substring(ofs, ofs + 40)
-//                                }
-//
-//                                // we have now everything to merge the PR
-//                                PUT("pulls/$pr/merge") {
-//                                    body("""{"repo":"${gh.repo}","pull_number":"$pr","commit_title":"org.gradle.sample:library:1.1","sha":"$lastCommit","merge_method":"squash"}""")
-//                                }
-//
-//                                // delete the tmp branch
-//                                DELETE("git/refs/heads/tmp")
+                                POST("git/refs") {
+                                    body("""{"ref": "refs/heads/tmp", "sha": "$rev"}""")
+                                }
+
+                                val ext = project.extensions.getByName<PublishingExtension>("publishing")
+                                val repo = ext.repositories.first { it.name.equals(gh.name, ignoreCase = true) } as MavenArtifactRepository
+
+                                // create/update every file on tmp
+                                val dir = File(repo.url)
+                                dir.walk().forEach { file ->
+                                    if (file.isFile) {
+                                        val path = file.toRelativeString(dir)
+                                        val response = GET("contents/$path", is404fine = true)
+                                        val maybeSha = when (response.status) {
+                                            Status.NOT_FOUND -> ""
+                                            else -> """, "sha": "${response.bodyString().sha}""""
+                                        }
+                                        val content = Base64.getEncoder().encodeToString(file.readBytes())
+                                        PUT("contents/$path") {
+                                            body("""{"path": "$path", "message": "$path", "content": "$content", "branch": "tmp"$maybeSha}""")
+                                        }
+                                    }
+                                }
+
+                                val publ = ext.publications.first {
+                                    it.name.equals(name.substringAfter("publish").substringBefore(postFix), ignoreCase = true)
+                                } as MavenPublication
+                                val gav = "${publ.groupId}:${publ.artifactId}:${publ.version}"
+
+                                // create the PR
+                                POST("pulls") {
+                                    body("""{"repo":"${gh.repo}","title":"$gav","head":"tmp","base":"master","body":"$gav"}""")
+                                }
+
+                                // retrieve the PR number
+                                val pr = run {
+                                    // retrieve all the PRs (it should be just one) and read its number
+                                    val body = GET("pulls").bodyString()
+                                    val ofs = body.indexOf(""","number":""") + 10
+                                    // let's give it a couple of digits, before parsing
+                                    val number = body.substring(ofs, ofs + 5)
+                                    number.takeWhile { it.isDigit() }.toInt()
+                                }
+
+                                // the current head on `tmp` branch
+                                val lastCommit = run {
+                                    val body = GET("commits/tmp").bodyString()
+                                    val ofs = body.indexOf("\"sha\":\"") + 7
+                                    body.substring(ofs, ofs + 40)
+                                }
+
+                                // we have now everything to merge the PR
+                                PUT("pulls/$pr/merge") {
+                                    body("""{"repo":"${gh.repo}","pull_number":"$pr","commit_title":"$gav","sha":"$lastCommit","merge_method":"squash"}""")
+                                }
+
+                                // delete the tmp branch
+                                DELETE("git/refs/heads/tmp")
                             }
                         }
+                    }
             }
         }
-    }
-
-    ////                            doLast {
-    ////
-    ////                            configured = true
-    //                        }
-    //            }
-    //        }
-}
-
-fun Project.putOnTmp(file: File, domain: String, path: String, is404fine: Boolean = false) {
-    val token = property("githubToken")!!
-    // try to get sha first in case the file already exist (which is mandatory if it's the case)
-    val response = GET("https://api.github.com/repos/$domain/contents/$path", token, is404fine = true)
-    val maybeSha = when (response.status) {
-        Status.NOT_FOUND -> ""
-        else -> """, "sha": "${response.bodyString().sha}""""
-    }
-    val content = Base64.getEncoder().encodeToString(file.readBytes())
-    PUT("https://api.github.com/repos/$domain/contents/$path", token) {
-        body("""{"path": "$path", "message": "$path", "content": "$content", "branch": "tmp"$maybeSha}""")
     }
 }
 
@@ -201,76 +183,19 @@ val String.sha: String
         return substring(ofs, ofs + 40)
     }
 
-val Project.token: String
-    get() = property("githubToken")!!.toString()
+/** root repositories scope */
+fun RepositoryHandler.github(domain: String) = maven("https://raw.githubusercontent.com/$domain/master")
 
-fun Project.getRevision(domain: String): String = GET("https://api.github.com/repos/$domain/git/refs/heads", token).bodyString().sha
+/** root repositories scope */
+fun RepositoryHandler.github(owner: String, repo: String) = maven("https://raw.githubusercontent.com/$owner/$repo/master")
 
-fun Project.newRef(domain: String, sha: String): Response =
-    POST("https://api.github.com/repos/$domain/git/refs", token) {
-        body("""{"ref": "refs/heads/tmp", "sha": "$sha"}""")
-    }
-
-fun Project.resetMaster(domain: String, rev: String): Response =
-    PATCH("https://api.github.com/repos/$domain/git/refs/master", token) {
-        body("""{"sha":"$rev"}""")
-    }
-
-fun Project.newPR(domain: String): Response =
-    POST("https://api.github.com/repos/$domain/pulls", token) {
-        body("""{"repo":"mary","title":"titolo","head":"tmp","base":"master","body":"corpo"}""")
-    }
-
-fun Project.prNumber(domain: String): Int {
-    val body = listPRs(domain).bodyString()
-    val ofs = body.indexOf(""","number":""") + 10
-    val number = body.substring(ofs, ofs + 5)
-    return number.takeWhile { it.isDigit() }.toInt()
-}
-
-fun Project.mergerPR(domain: String, pr: Int, tmpHead: String) {
-    println(PUT("https://api.github.com/repos/$domain/pulls/$pr/merge", token) {
-        body("""{"repo":"mary","pull_number":"$pr","commit_title":"org.gradle.sample:library:1.1","sha":"$tmpHead","merge_method":"squash"}""")
-    })
-}
-
-fun Project.getLastTmpCommitID(domain: String): String {
-    val body = GET("https://api.github.com/repos/$domain/commits/tmp", token).bodyString()
-    val ofs = body.indexOf("\"sha\":\"") + 7
-    return body.substring(ofs, ofs + 40)
-}
-
-fun Project.listPRs(domain: String): Response = GET("https://api.github.com/repos/$domain/pulls", token)
-
-fun Project.deleteTmp(domain: String): Response = DELETE("https://api.github.com/repos/$domain/git/refs/heads/tmp", token)
-
-operator fun Method.invoke(uri: String, token: Any,
-                           debugRequest: Boolean = false, debugResponse: Boolean = false,
-                           is404fine: Boolean = false,
-                           block: (Request.() -> Request)? = null): Response {
-    var request = Request(this, uri)
-        .header("Accept", "application/vnd.github.v3+json")
-        .header("Authorization", "token $token")
-    if (debugRequest)
-        println(request)
-    if (block != null)
-        request = request.block()
-    return JavaHttpClient()(request).apply {
-        close()
-        if (debugResponse)
-            println(this)
-        if (!status.successful)
-            if (status != Status.NOT_FOUND || !is404fine)
-                error("$status\n$request\n(${request.toCurl()}\n$this")
-    }
-}
-
+/** publishing/repositories scope */
 fun RepositoryHandler.github(block: GithubArtifactRepository.() -> Unit) {
     val gh = GithubArtifactRepository()
     gh.url = configuringProject.run { uri(layout.buildDirectory.dir("repo")) }
     gh.block()
-    githubContainer.get().parameters.repositories.get() += gh
-//    githubs += gh
+    //    githubContainer.get().parameters.repositories.get() += gh
+    githubs += gh
     maven {
         name = gh.name
         url = gh.url
@@ -305,6 +230,4 @@ class GithubArtifactRepository : ArtifactRepository {
 //
 //private operator fun ReadWriteProperty<GithubArtifactRepository, URI>.setValue(t: GithubArtifactRepository, property: KProperty<*>, v: URI) {
 //    TODO("Not yet implemented")
-//}
-
-//fun MavenPublication.set
+//}=
