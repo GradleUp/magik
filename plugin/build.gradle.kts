@@ -14,11 +14,12 @@ plugins {
     id("org.jetbrains.kotlin.jvm") version "1.4.20"
 
     `kotlin-dsl`
+
+    id("com.gradle.plugin-publish") version "0.14.0"
 }
 
 repositories {
     // Use JCenter for resolving dependencies.
-    jcenter()
     mavenCentral()
     gradlePluginPortal()
 }
@@ -36,29 +37,33 @@ dependencies {
     // Use the Kotlin JUnit integration.
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit")
 
-//    implementation("io.github.rybalkinsd:kohttp:0.12.0")
-
-    implementation(platform("org.http4k:http4k-bom:4.8.0.0"))
-    implementation("org.http4k:http4k-core")
-    implementation("org.http4k:http4k-server-netty")
-    implementation("org.http4k:http4k-client-apache")
-
-//    implementation("org.gradle.kotlin.kotlin-dsl:org.gradle.kotlin.kotlin-dsl.gradle.plugin:2.1.4")
-//    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:1.4.20")
-//    implementation("org.gradle.kotlin:gradle-kotlin-dsl-plugins:2.1.4")
+//    implementation(platform("org.http4k:http4k-bom:4.9.0.2"))
+    implementation("org.http4k:http4k-core:4.9.0.2")
+    implementation("org.http4k:http4k-server-netty:4.9.0.2")
+    implementation("org.http4k:http4k-client-apache:4.9.0.2")
 }
+
+group = "elect86"
+version = "0.0.1"
 
 gradlePlugin {
     // Define the plugin
-    val greeting by plugins.creating {
-        id = "magik"
+    plugins.create("greeting") {
+        id = "elect86.magik"
+        displayName = "MAven repository on GIthub in Kotlin"
+        description = "publish directly on your github repository acting as a maven repository"
         implementationClass = "magik.MagikPlugin"
     }
 }
 
-// Add a source set for the functional test suite
-val functionalTestSourceSet = sourceSets.create("functionalTest") {
+pluginBundle {
+    website = "https://github.com/elect86/magik"
+    vcsUrl = "https://github.com/elect86/magik"
+    tags = listOf("github", "repository", "maven", "kotlin", "publish", "publishing")
 }
+
+// Add a source set for the functional test suite
+val functionalTestSourceSet = sourceSets.create("functionalTest") {}
 
 gradlePlugin.testSourceSets(functionalTestSourceSet)
 configurations["functionalTestImplementation"].extendsFrom(configurations["testImplementation"])
