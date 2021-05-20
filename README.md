@@ -29,7 +29,7 @@ Take in account `github` is convention, you can change it with whatever you want
 
 ##### Publishing
 
-```
+```kotlin
 publishing {
     publications {
         create<MavenPublication>("maven") {
@@ -38,17 +38,19 @@ publishing {
             version = "0.1"
 
             from(components["java"])
-        }.alsoSnapshot() // this clone the publication for snapshots 
-        // eg: publishMavenPublicationToGithubRepository -> publishMavenSnapshotPublicationToGithubRepository
+        }.alsoSnapshot() // this clones the publication for snapshots 
+        // eg: publishMavenPublicationToGithubRepository -> 
+        //     publishMavenSnapshotPublicationToGithubRepository
     }
     repositories {
         github {
-            // this is superfluous since `github` is the default value
-            // but this determines the token name to fetch and the publishing task name (eg: publishMavenPublicationToGithubRepository)
+            // this is superfluous since `github` is the default value, but this determines 
+            // the token name to fetch and the consequent publishing task name 
+            // eg: publishMavenPublicationToGithubRepository
             name = "github" 
             
             // this is mandatory instead: $owner/$repo on github domain
-            domain = "kotlin-graphics/mary" // => https://github.com/kotlin-graphics/mary
+            domain = "kotlin-graphics/mary" // aka https://github.com/kotlin-graphics/mary
         }
     }
 }
@@ -56,7 +58,7 @@ publishing {
 
 ##### Fetching
 
-```
+```kotlin
 repositories {
     github("kotlin-graphics/mary")
 }
@@ -64,7 +66,7 @@ repositories {
 
 or
 
-```
+```kotlin
 repositories {
     github("kotlin-graphics", "mary")
 }
