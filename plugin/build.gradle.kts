@@ -16,6 +16,8 @@ plugins {
     `kotlin-dsl`
 
     id("com.gradle.plugin-publish") version "0.14.0"
+
+    `maven-publish`
 }
 
 repositories {
@@ -37,20 +39,20 @@ dependencies {
     // Use the Kotlin JUnit integration.
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit")
 
-//    implementation(platform("org.http4k:http4k-bom:4.9.0.2"))
-    implementation("org.http4k:http4k-core:4.9.0.2")
-    implementation("org.http4k:http4k-server-netty:4.9.0.2")
-    implementation("org.http4k:http4k-client-apache:4.9.0.2")
+    implementation(platform("org.http4k:http4k-bom:4.9.0.2"))
+    implementation("org.http4k:http4k-core")
+    implementation("org.http4k:http4k-server-netty")
+    implementation("org.http4k:http4k-client-apache")
 }
 
-group = "elect86"
-version = "0.0.1"
+group = "com.github.elect86"
+version = "0.0.3"
 
 gradlePlugin {
     // Define the plugin
     plugins.create("greeting") {
         id = "elect86.magik"
-        displayName = "MAven repository on GIthub in Kotlin"
+        displayName = "Maven repository on Github in Kotlin"
         description = "publish directly on your github repository acting as a maven repository"
         implementationClass = "magik.MagikPlugin"
     }
