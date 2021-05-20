@@ -38,13 +38,15 @@ publishing {
             version = "0.1"
 
             from(components["java"])
-        }.alsoSnapshot() // this clone the publication for snapshots 
-        // eg: publishMavenPublicationToGithubRepository -> publishMavenSnapshotPublicationToGithubRepository
+        }.alsoSnapshot() // this clones the publication for snapshots 
+        // eg: publishMavenPublicationToGithubRepository -> 
+        //     publishMavenSnapshotPublicationToGithubRepository
     }
     repositories {
         github {
-            // this is superfluous since `github` is the default value
-            // but this determines the token name to fetch and the publishing task name (eg: publishMavenPublicationToGithubRepository)
+            // this is superfluous since `github` is the default value, but this determines 
+            // the token name to fetch and the consequent publishing task name 
+            // eg: publishMavenPublicationToGithubRepository
             name = "github" 
             
             // this is mandatory instead: $owner/$repo on github domain
