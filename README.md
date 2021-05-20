@@ -46,7 +46,7 @@ publishing {
     }
     repositories {
         github {
-            // this is superfluous since `github` is the default value, but this determines 
+            // this is superfluous since `github` is the default value, but it determines 
             // the token name to fetch and the consequent publishing task name 
             // eg: publishMavenPublicationToGithubRepository
             name = "github" 
