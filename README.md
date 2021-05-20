@@ -29,7 +29,7 @@ Take in account `github` is convention, you can change it with whatever you want
 
 ##### Publishing
 
-```
+```kotlin
 publishing {
     publications {
         create<MavenPublication>("maven") {
@@ -56,7 +56,7 @@ publishing {
 
 ##### Fetching
 
-```
+```kotlin
 repositories {
     github("kotlin-graphics/mary")
 }
@@ -64,7 +64,7 @@ repositories {
 
 or
 
-```
+```kotlin
 repositories {
     github("kotlin-graphics", "mary")
 }
