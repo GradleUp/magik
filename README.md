@@ -50,7 +50,7 @@ publishing {
             name = "github" 
             
             // this is mandatory instead: $owner/$repo on github domain
-            domain = "kotlin-graphics/mary" // => https://github.com/kotlin-graphics/mary
+            domain = "kotlin-graphics/mary" // aka https://github.com/kotlin-graphics/mary
         }
     }
 }
