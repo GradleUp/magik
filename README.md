@@ -3,7 +3,7 @@
 
 Turn your personal Github repository into your personal maven repository.
 
-I was tired of Github Packages requiring authentication even for public access, Sonatype and Maven Central being a pain to setup, the first supporting only one snapshot at time (and you need to deal with cache) and Nexus in general being incredibly slow in comparison, I wroted this
+I was tired of Github Packages requiring authentication even for public access, Sonatype and Maven Central being a pain to setup, the first supporting only one snapshot at time (and you need to deal with cache) and Nexus in general being incredibly slow in comparison, therefore I decided to go on my own and write this
 
 Usually it was already possible doing something like that, but this implicitely means you must have the repo cloned locally and manually committing and pushing. Now these limitations are gone, allowing for faster development cycles.
 
