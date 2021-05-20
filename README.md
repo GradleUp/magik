@@ -16,6 +16,10 @@ What this plugin does is the following:
 
 ### How to use
 
+##### Authentication
+
+You should first be sure to be able to connect to [GitHub using ssh](https://docs.github.com/en/github/authenticating-to-github/connecting-to-github-with-ssh)
+
 ##### Publishing
 
 ```
