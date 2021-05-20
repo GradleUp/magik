@@ -1,4 +1,4 @@
-# magik
+# [magik](https://plugins.gradle.org/plugin/elect86.magik)
 
 
 Turn your personal Github repository into your personal maven repository.
