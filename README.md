@@ -5,7 +5,7 @@ Turn your personal Github repository into your personal maven repository.
 
 I was tired of Github Packages requiring authentication even for public access, Sonatype and Maven Central being a pain to setup, the first supporting only one snapshot at time (and you need to deal with cache) and Nexus in general being incredibly slow in comparison, therefore I decided to go on my own and write this
 
-Usually it was already possible doing something like that, but this implicitely means you must have the repo cloned locally and manually committing and pushing. Now these limitations are gone, allowing for faster development cycles.
+Usually it was already possible doing something like that, but this implicitely meant you had to have the repo cloned locally and manually committ and push. Now these limitations are gone, allowing for even faster development cycles.
 
 What this plugin does is the following:
 - publishes locally to `$buildDir/repo`
@@ -73,6 +73,20 @@ repositories {
     github("kotlin-graphics", "mary")
 }
 ```
+
+### Settings
+
+Sometimes it happens you forget to commit before publishing. In order to avoid these situations, the default setting will warn you whenever you are committing while there are changes to be committed or not staged for commit.
+This requires `git` being available on path though.
+
+If you want to overwrite this setting
+
+```kotlin
+magik {
+    commitAnywayWithChanges.set(true)
+}
+```
+
 
 Known limitations: max 100GB total repo size, max 100MB size per file.
 
