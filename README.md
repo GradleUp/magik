@@ -15,6 +15,7 @@ What this plugin does is the following:
 - merges the same PR back to master by squashing all the commits into a single one
 - deletes the `tmp` branch
 
+![image](https://img.devrant.com/devrant/rant/r_2516404_bkZxN.jpg)
 
 ### How to use
 
