@@ -28,12 +28,22 @@ import java.net.URI
 import java.util.*
 
 
-abstract class MagikPluginExtension {
+abstract class MagikExtension {
 
-    abstract val commitAnywayWithChanges: Property<Boolean>
+    abstract val commitWithChanges: Property<Boolean>
+    abstract val defaultCommitWithChanges: Property<Boolean>
+    abstract val gitOnPath: Property<Boolean>
+    abstract val dryRun: Property<Boolean>
 
     init {
-        commitAnywayWithChanges.convention(false)
+        commitWithChanges.convention(false)
+        defaultCommitWithChanges.convention(false)
+        gitOnPath.convention(configuringProject.exec {
+            commandLine("git", "--version")
+            // disable output with a dummy instance
+            standardOutput = ByteArrayOutputStream()
+        }.exitValue == 0)
+        dryRun.convention(false)
     }
 }
 
@@ -53,10 +63,8 @@ abstract class MagikPluginExtension {
 // reference in order to loop and detect automatically the publishing task to append logic to
 val githubs = ArrayList<GithubArtifactRepository>()
 
-// project reference in order to automatically set as default, a `repo` directory in the build one
+// i-th project reference in order to automatically set as default, a `repo` directory in the build one
 lateinit var configuringProject: Project
-
-val dryRun = false
 
 /**
  * A simple 'hello world' plugin.
@@ -76,7 +84,7 @@ class MagikPlugin : Plugin<Project> {
         githubs.clear()
 
         // Add the 'greeting' extension object
-        val extension = project.extensions.create<MagikPluginExtension>("magik")
+        val extension = project.extensions.create<MagikExtension>("magik")
 
         // Register a task
         project.tasks.register("greeting") {
@@ -91,8 +99,8 @@ class MagikPlugin : Plugin<Project> {
                 project.tasks.all {
                     if (name.startsWith("publish"))
                         for (gh in githubs) {
-                            //                                                println(githubs.size)
-                            //                            println("$this, $name")
+                            //                            println(githubs.size)
+                            println("$this, $name")
                             val ghName = gh.name.capitalize()
                             val postFix = "PublicationTo${ghName}Repository"
                             if (name.endsWith(postFix)) {
@@ -106,35 +114,37 @@ class MagikPlugin : Plugin<Project> {
 
                                 var proceed = true
                                 doFirst {
+                                    if (!extension.gitOnPath.get() || extension.commitWithChanges.get())
+                                        return@doFirst
                                     val status = project.exec("git status")
                                     val changesToBeCommitted = "Changes to be committed"
                                     val changesNotStagedForCommit = "Changes not staged for commit"
                                     if (changesToBeCommitted in status || changesNotStagedForCommit in status) {
                                         println(status)
                                         tailrec fun proceed(): Boolean {
-                                            val options = if (extension.commitAnywayWithChanges.get()) "[Y]/N" else "Y/[N]"
+                                            val options = if (extension.defaultCommitWithChanges.get()) "[Y]/N" else "Y/[N]"
                                             println("\nDo you want to continue publishing anyway? $options:")
                                             val reader = BufferedReader(InputStreamReader(System.`in`))
                                             return when (reader.read().toChar()) {
                                                 'Y', 'y' -> true
                                                 'N', 'n' -> false
-                                                '\n' -> extension.commitAnywayWithChanges.get()
+                                                '\n' -> extension.defaultCommitWithChanges.get()
                                                 else -> proceed()
                                             }
                                         }
                                         proceed = proceed()
                                         if (proceed)
-                                            println("..continuing with the publication although local changes are present..")
+                                            println("..continuing with the publication although some local changes are present..")
                                         else
                                             System.err.println("aborting, please commit or revert your local changes before proceeding publishing")
                                     }
                                 }
 
-                                if (!dryRun)
+                                if (!extension.dryRun.get())
                                     doLast {
                                         if (!proceed)
                                             return@doLast
-//                                        println(project.displayName)
+                                        //                                        println(project.displayName)
                                         operator fun Method.invoke(relativeUri: String, debugRequest: Boolean = false,
                                                                    debugResponse: Boolean = false, is404fine: Boolean = false,
                                                                    block: (Request.() -> Request)? = null): Response {
