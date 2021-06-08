@@ -80,3 +80,7 @@ tasks.check {
     // Run the functional tests as part of `check`
     dependsOn(functionalTest)
 }
+
+tasks.compileJava {
+
+}
