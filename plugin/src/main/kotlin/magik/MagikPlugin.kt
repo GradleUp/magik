@@ -181,7 +181,7 @@ class MagikPlugin : Plugin<Project> {
                                 val dir = File(repo.url)
                                 dir.walk().forEach { file ->
                                     if (file.isFile) {
-                                        val path = file.toRelativeString(dir)
+                                        val path = file.toRelativeString(dir).replace('\\', '/')
                                         val response = GET("contents/$path", is404fine = true)
                                         val maybeSha = when (response.status) {
                                             Status.NOT_FOUND -> ""
