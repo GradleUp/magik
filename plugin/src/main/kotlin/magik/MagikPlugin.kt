@@ -72,8 +72,6 @@ class MagikPlugin : Plugin<Project> {
 
     override fun apply(project: Project) {
 
-        //                println(project)
-
         // Register the service
         //        githubContainer = project.gradle.sharedServices.registerIfAbsent("githubContainer", GithubContainer::class.java) {}
 
@@ -93,11 +91,14 @@ class MagikPlugin : Plugin<Project> {
         }
 
         project.tasks.configureEach {
+
             if (name.startsWith("publish"))
+
                 for (gh in githubs) {
                     //                    println("$this, $name")
                     val ghName = gh.name.capitalize()
                     val postFix = "PublicationTo${ghName}Repository"
+
                     if (name.endsWith(postFix)) {
                         //                        println("$this, $name .. appending")
 
@@ -110,7 +111,7 @@ class MagikPlugin : Plugin<Project> {
                             it.name.equals(name.substringAfter("publish").substringBefore(postFix), ignoreCase)
                         } as MavenPublication
 
-
+                        // delete first any previously local publication
                         File(gh.url).deleteRecursively()
 
                         var proceed = true
