@@ -13,6 +13,7 @@ import org.gradle.api.artifacts.repositories.RepositoryContentDescriptor
 import org.gradle.api.provider.Property
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.api.tasks.Input
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.get
 import org.gradle.kotlin.dsl.getByName
@@ -30,9 +31,16 @@ import java.util.*
 
 abstract class MagikExtension {
 
+    @get:Input
     abstract val commitWithChanges: Property<Boolean>
+
+    @get:Input
     abstract val defaultCommitWithChanges: Property<Boolean>
+
+    @get:Input
     abstract val gitOnPath: Property<Boolean>
+
+    @get:Input
     abstract val dryRun: Property<Boolean>
 
     init {
