@@ -11,7 +11,7 @@ plugins {
     `java-gradle-plugin`
 
     // Apply the Kotlin JVM plugin to add support for Kotlin.
-    id("org.jetbrains.kotlin.jvm") version "1.4.20"
+    id("org.jetbrains.kotlin.jvm") version "1.5.21"
 
     `kotlin-dsl`
 
@@ -46,7 +46,7 @@ dependencies {
 }
 
 group = "com.github.elect86"
-version = "0.0.7"
+version = "0.0.8"
 
 gradlePlugin {
     // Define the plugin
