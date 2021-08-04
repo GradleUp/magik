@@ -30,6 +30,14 @@ Then copy the token and paste it in `gradle.property` in your home (`~/.gradle`)
 
 Take in account `github` is convention, you can change it with whatever you want (read the next section). Magik will look for your token in a variable names as `${githubRepositoryName}Token`
 
+##### Use plugin
+
+```
+plugins {
+  id("elect86.magik") version "0.0.6"
+}
+```
+
 ##### Publishing
 
 ```kotlin
