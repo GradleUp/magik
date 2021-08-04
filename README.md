@@ -17,7 +17,7 @@ What this plugin does is the following:
 
 ![image](https://img.devrant.com/devrant/rant/r_2516404_bkZxN.jpg)
 
-Welcome Magik (MAven repository on Github written In Kotlin)
+Welcome [Magik](https://plugins.gradle.org/plugin/elect86.magik) (MAven repository on Github written In Kotlin)
 
 ### How to use
 
