@@ -19,6 +19,12 @@ What this plugin does is the following:
 
 Welcome [Magik](https://plugins.gradle.org/plugin/elect86.magik) (MAven repository on Github written In Kotlin)
 
+```
+plugins {
+  id("elect86.magik") version "0.0.6"
+}
+```
+
 ### How to use
 
 ##### Authentication
@@ -31,14 +37,6 @@ Then copy the token and paste it in `gradle.property` in your home (`~/.gradle`)
 `githubToken=ghp_...`
 
 Take in account `github` is convention, you can change it with whatever you want (read the next section). Magik will look for your token in a variable names as `${githubRepositoryName}Token`
-
-##### Use plugin
-
-```
-plugins {
-  id("elect86.magik") version "0.0.6"
-}
-```
 
 ##### Publishing
 
