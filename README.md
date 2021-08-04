@@ -53,7 +53,8 @@ publishing {
         // eg: publishMavenPublicationToGithubRepository -> 
         //     publishMavenSnapshotPublicationToGithubRepository
     }
-    // don't use `repositories.github()`, it won't work. The dsl construct is necessary to distinguish it from a consume-only repo
+    // don't use `repositories.github(..)`, it won't work
+    // the dsl construct is necessary to distinguish it from a consume-only repo
     repositories {
         github {
             // this is superfluous since `github` is the default value, but it determines 
