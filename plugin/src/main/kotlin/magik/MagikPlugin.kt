@@ -103,7 +103,7 @@ class MagikPlugin : Plugin<Project> {
             if (name.startsWith("publish"))
 
                 for (gh in githubs) {
-                    //                    println("$this, $name")
+                    println("$this, $name")
                     val ghName = gh.name.capitalize()
                     val postFix = "PublicationTo${ghName}Repository"
 
@@ -145,7 +145,7 @@ class MagikPlugin : Plugin<Project> {
                                 }
                                 proceed = proceed()
                                 if (proceed)
-                                    println("..continuing with the publication although some local changes are present..")
+                                    println("..continuing the publication with uncommited local changes..")
                                 else
                                     println("aborting, please commit or revert your local changes before proceeding publishing")
                             }
@@ -289,15 +289,18 @@ class GithubArtifactRepository : ArtifactRepository {
     override fun content(configureAction: Action<in RepositoryContentDescriptor>) = TODO("Not yet implemented")
 }
 
+enum class SoftwareComponent { java, javaPlatform, war }
+
 /** There are only three types of publications: java, platform and war. We default on the most common one */
-fun MavenPublication.alsoSnapshot(component: String = "java",
+fun MavenPublication.alsoSnapshot(component: SoftwareComponent = SoftwareComponent.java,
                                   postfix: (gitDistance: Int) -> String = { "+$gitDistance" }) {
+    val pub = this
     configuringProject.extensions.getByName<PublishingExtension>("publishing").publications {
-        create<MavenPublication>("${this@alsoSnapshot.name}Snapshot") {
-            groupId = this@alsoSnapshot.groupId
-            artifactId = this@alsoSnapshot.artifactId
-            version = "${this@alsoSnapshot.version}${postfix(gitDistance)}"
-            from(configuringProject.components[component])
+        create<MavenPublication>("${pub.name}Snapshot") {
+            groupId = pub.groupId
+            artifactId = pub.artifactId
+            version = "${pub.version}${postfix(gitDistance)}"
+            from(configuringProject.components[component.name])
         }
     }
 }
