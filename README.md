@@ -21,7 +21,7 @@ Welcome [Magik](https://plugins.gradle.org/plugin/elect86.magik) (MAven reposito
 
 ```
 plugins {
-  id("elect86.magik") version "0.0.6"
+  id("elect86.magik") version "0.0.8"
 }
 ```
 
@@ -53,6 +53,8 @@ publishing {
         // eg: publishMavenPublicationToGithubRepository -> 
         //     publishMavenSnapshotPublicationToGithubRepository
     }
+    // don't use `repositories.github(..)`, it won't work
+    // the dsl construct is necessary to distinguish it from a consume-only repo
     repositories {
         github {
             // this is superfluous since `github` is the default value, but it determines 
