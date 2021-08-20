@@ -43,10 +43,12 @@ dependencies {
     implementation("org.http4k:http4k-core")
     implementation("org.http4k:http4k-server-netty")
     implementation("org.http4k:http4k-client-apache")
+
+    implementation("com.google.code.gson:gson:2.8.7")
 }
 
 group = "com.github.elect86"
-version = "0.0.8"
+version = "0.0.9"
 
 gradlePlugin {
     // Define the plugin

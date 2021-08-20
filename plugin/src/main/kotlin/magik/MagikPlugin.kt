@@ -10,6 +10,7 @@ import org.gradle.api.artifacts.dsl.RepositoryHandler
 import org.gradle.api.artifacts.repositories.ArtifactRepository
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository
 import org.gradle.api.artifacts.repositories.RepositoryContentDescriptor
+import org.gradle.api.internal.component.SoftwareComponentInternal
 import org.gradle.api.provider.Property
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
@@ -43,6 +44,9 @@ abstract class MagikExtension {
     @get:Input
     abstract val dryRun: Property<Boolean>
 
+    @get:Input
+    abstract val verbose: Property<Boolean>
+
     init {
         commitWithChanges.convention(false)
         defaultCommitWithChanges.convention(false)
@@ -51,6 +55,7 @@ abstract class MagikExtension {
             standardOutput = ByteArrayOutputStream() // disable output with a dummy instance
         }.exitValue == 0)
         dryRun.convention(false)
+        verbose.convention(false)
     }
 }
 
@@ -79,17 +84,14 @@ lateinit var configuringProject: Project
 class MagikPlugin : Plugin<Project> {
 
     override fun apply(project: Project) {
-
+        //        println(project.name)
         // Register the service
         //        githubContainer = project.gradle.sharedServices.registerIfAbsent("githubContainer", GithubContainer::class.java) {}
 
         configuringProject = project
 
-        // we need to clear once at begin of the parsing, otherwise repos will continue gets added over and over again
-        githubs.clear()
-
         // Add the 'greeting' extension object
-        val extension = project.extensions.create<MagikExtension>("magik")
+        val setting = project.extensions.create<MagikExtension>("magik")
 
         // Register a task
         project.tasks.register("greeting") {
@@ -100,142 +102,148 @@ class MagikPlugin : Plugin<Project> {
 
         project.tasks.configureEach {
 
-            if (name.startsWith("publish"))
+            val gh = githubs.first { it.project == project }
+            //            if (setting.verbose.get()) println(gh.project)
+            val ghName = gh.name.capitalize()
+            val postFix = "PublicationTo${ghName}Repository"
 
-                for (gh in githubs) {
-                    println("$this, $name")
-                    val ghName = gh.name.capitalize()
-                    val postFix = "PublicationTo${ghName}Repository"
+            val found = name.startsWith("publish") && name.endsWith(postFix)
 
-                    if (name.endsWith(postFix)) {
-                        //                        println("$this, $name .. appending")
+            if (!found)
+                return@configureEach
 
-                        val ext = project.extensions.getByName<PublishingExtension>("publishing")
-                        val ignoreCase = true
-                        val repo = ext.repositories.first {
-                            it.name.equals(gh.name, ignoreCase)
-                        } as MavenArtifactRepository
-                        val publ = ext.publications.first {
-                            it.name.equals(name.substringAfter("publish").substringBefore(postFix), ignoreCase)
-                        } as MavenPublication
+            if (setting.verbose.get()) println("$this, $name .. appending")
 
-                        // delete first any previously local publication
-                        File(gh.url).deleteRecursively()
+            val ext = project.extensions.getByName<PublishingExtension>("publishing")
+            val ignoreCase = true
+            val repo = ext.repositories.first { it.name.equals(gh.name, ignoreCase) } as MavenArtifactRepository
+            val publ = ext.publications.first {
+                it.name.equals(name.substringAfter("publish").substringBefore(postFix), ignoreCase)
+            } as MavenPublication
 
-                        var proceed = true
-                        doFirst {
-                            // check against git uncommitted changes
-                            if (!extension.gitOnPath.get() || extension.commitWithChanges.get())
-                                return@doFirst
-                            val status = project.exec("git status")
-                            val changesToBeCommitted = "Changes to be committed"
-                            val changesNotStagedForCommit = "Changes not staged for commit"
-                            if (changesToBeCommitted in status || changesNotStagedForCommit in status) {
-                                println(status)
-                                tailrec fun proceed(): Boolean {
-                                    val options = if (extension.defaultCommitWithChanges.get()) "[Y]/N" else "Y/[N]"
-                                    println("\n[magik] Do you want to continue publishing anyway? $options:")
-                                    val reader = BufferedReader(InputStreamReader(System.`in`))
-                                    return when (reader.read().toChar()) {
-                                        'Y', 'y' -> true
-                                        'N', 'n' -> false
-                                        '\n' -> extension.defaultCommitWithChanges.get()
-                                        else -> proceed()
-                                    }
-                                }
-                                proceed = proceed()
-                                if (proceed)
-                                    println("..continuing the publication with uncommited local changes..")
-                                else
-                                    println("aborting, please commit or revert your local changes before proceeding publishing")
-                            }
+            // delete first any previously local publication
+            File(gh.url).deleteRecursively()
+            if (setting.verbose.get()) println("delete first any previously local publication at ${gh.url}")
+
+            var proceed = true
+            doFirst {
+                // check against git uncommitted changes
+                if (!setting.gitOnPath.get() || setting.commitWithChanges.get())
+                    return@doFirst
+                val status = project.exec("git status")
+                val changesToBeCommitted = "Changes to be committed"
+                val changesNotStagedForCommit = "Changes not staged for commit"
+                if (changesToBeCommitted in status || changesNotStagedForCommit in status) {
+                    println(status)
+                    tailrec fun proceed(): Boolean {
+                        val options = if (setting.defaultCommitWithChanges.get()) "[Y]/N" else "Y/[N]"
+                        println("\n[magik] Do you want to continue publishing anyway? $options:")
+                        val reader = BufferedReader(InputStreamReader(System.`in`))
+                        return when (reader.read().toChar()) {
+                            'Y', 'y' -> true
+                            'N', 'n' -> false
+                            '\n' -> setting.defaultCommitWithChanges.get()
+                            else -> proceed()
                         }
+                    }
+                    proceed = proceed()
+                    if (proceed)
+                        println("..continuing the publication with uncommited local changes..")
+                    else
+                        println("aborting, please commit or revert your local changes before proceeding publishing")
+                }
+            }
 
-                        if (!extension.dryRun.get())
-                            doLast {
-                                if (!proceed)
-                                    return@doLast
-                                //                                        println(project.displayName)
-                                operator fun Method.invoke(relativeUri: String, debugRequest: Boolean = false,
-                                                           debugResponse: Boolean = false, is404fine: Boolean = false,
-                                                           block: (Request.() -> Request)? = null): Response {
-                                    var request = Request(this, "https://api.github.com/repos/${gh.domain}/$relativeUri")
-                                        .header("Accept", "application/vnd.github.v3+json")
-                                        .header("Authorization", "token ${project.property("${gh.name}Token")!!}")
-                                    if (debugRequest)
-                                        println(request)
-                                    if (block != null)
-                                        request = request.block()
-                                    return JavaHttpClient()(request).apply {
-                                        close()
-                                        if (debugResponse)
-                                            println(this)
-                                        if (!status.successful)
-                                            if (status != Status.NOT_FOUND || !is404fine)
-                                                error("$status\n$request\n(${request.toCurl()}\n$this")
-                                    }
-                                }
-
-                                // save commit revision
-                                val rev = GET("git/refs/heads").bodyString().sha
-                                //                                println(rev)
-
-                                // create tmp branch via a reference
-                                POST("git/refs") {
-                                    body("""{"ref": "refs/heads/tmp", "sha": "$rev"}""")
-                                }
-
-                                // create/update every file on tmp
-                                val dir = File(repo.url)
-                                dir.walk().forEach { file ->
-                                    if (file.isFile) {
-                                        val path = file.toRelativeString(dir).replace('\\', '/')
-                                        val response = GET("contents/$path", is404fine = true)
-                                        val maybeSha = when (response.status) {
-                                            Status.NOT_FOUND -> ""
-                                            else -> """, "sha": "${response.bodyString().sha}""""
-                                        }
-                                        val content = Base64.getEncoder().encodeToString(file.readBytes())
-                                        PUT("contents/$path") {
-                                            body("""{"path": "$path", "message": "$path", "content": "$content", "branch": "tmp"$maybeSha}""")
-                                        }
-                                    }
-                                }
-
-                                val gav = "${publ.groupId}:${publ.artifactId}:${publ.version}"
-
-                                // create the PR
-                                POST("pulls") {
-                                    body("""{"repo":"${gh.repo}","title":"$gav","head":"tmp","base":"master","body":"$gav"}""")
-                                }
-
-                                // retrieve the PR number
-                                val pr = run {
-                                    // retrieve all the PRs (it should be just one) and read its number
-                                    val body = GET("pulls").bodyString()
-                                    val ofs = body.indexOf(""","number":""") + 10
-                                    // let's give it a couple of digits, before parsing
-                                    val number = body.substring(ofs, ofs + 5)
-                                    number.takeWhile { it.isDigit() }.toInt()
-                                }
-
-                                // the current head on `tmp` branch
-                                val lastCommit = run {
-                                    val body = GET("commits/tmp").bodyString()
-                                    val ofs = body.indexOf("\"sha\":\"") + 7
-                                    body.substring(ofs, ofs + 40)
-                                }
-
-                                // we have now everything to merge the PR
-                                PUT("pulls/$pr/merge") {
-                                    body("""{"repo":"${gh.repo}","pull_number":"$pr","commit_title":"$gav","sha":"$lastCommit","merge_method":"squash"}""")
-                                }
-
-                                // delete the tmp branch
-                                DELETE("git/refs/heads/tmp")
-                            }
+            doLast {
+                if (!proceed)
+                    return@doLast
+                //                                        println(project.displayName)
+                operator fun Method.invoke(relativeUri: String, debugRequest: Boolean = false,
+                                           debugResponse: Boolean = false, is404fine: Boolean = false,
+                                           block: (Request.() -> Request)? = null): Response {
+                    var request = Request(this, "https://api.github.com/repos/${gh.domain}/$relativeUri")
+                        .header("Accept", "application/vnd.github.v3+json")
+                        .header("Authorization", "token ${project.property("${gh.name}Token")!!}")
+                    if (debugRequest)
+                        println(request)
+                    if (block != null)
+                        request = request.block()
+                    return JavaHttpClient()(request).apply {
+                        close()
+                        if (debugResponse)
+                            println(this)
+                        if (!status.successful)
+                            if (status != Status.NOT_FOUND || !is404fine)
+                                error("$status\n$request\n(${request.toCurl()}\n$this")
                     }
                 }
+
+                if (!setting.dryRun.get()) {
+                    // save commit revision
+                    val rev = GET("git/refs/heads").bodyString().sha
+                    if (setting.verbose.get()) println("rev: $rev")
+
+                    // create tmp branch via a reference
+                    POST("git/refs") {
+                        body("""{"ref": "refs/heads/tmp", "sha": "$rev"}""")
+                    }
+                }
+
+                // create/update every file on tmp
+                val dir = File(repo.url)
+                if (setting.verbose.get()) println("dir: $dir")
+                dir.walk().forEach { file ->
+                    if (file.isFile) {
+                        if (setting.verbose.get()) println(file)
+                        if (!setting.dryRun.get()) {
+                            val path = file.toRelativeString(dir).replace('\\', '/')
+                            val response = GET("contents/$path", is404fine = true)
+                            val maybeSha = when (response.status) {
+                                Status.NOT_FOUND -> ""
+                                else -> """, "sha": "${response.bodyString().sha}""""
+                            }
+                            val content = Base64.getEncoder().encodeToString(file.readBytes())
+                            PUT("contents/$path") {
+                                body("""{"path": "$path", "message": "$path", "content": "$content", "branch": "tmp"$maybeSha}""")
+                            }
+                        }
+                    }
+                }
+
+                if (!setting.dryRun.get()) {
+                    val gav = "${publ.groupId}:${publ.artifactId}:${publ.version}"
+
+                    // create the PR
+                    POST("pulls") {
+                        body("""{"repo":"${gh.repo}","title":"$gav","head":"tmp","base":"master","body":"$gav"}""")
+                    }
+
+                    // retrieve the PR number
+                    val pr = run {
+                        // retrieve all the PRs (it should be just one) and read its number
+                        val body = GET("pulls").bodyString()
+                        val ofs = body.indexOf(""","number":""") + 10
+                        // let's give it a couple of digits, before parsing
+                        val number = body.substring(ofs, ofs + 5)
+                        number.takeWhile { it.isDigit() }.toInt()
+                    }
+
+                    // the current head on `tmp` branch
+                    val lastCommit = run {
+                        val body = GET("commits/tmp").bodyString()
+                        val ofs = body.indexOf("\"sha\":\"") + 7
+                        body.substring(ofs, ofs + 40)
+                    }
+
+                    // we have now everything to merge the PR
+                    PUT("pulls/$pr/merge") {
+                        body("""{"repo":"${gh.repo}","pull_number":"$pr","commit_title":"$gav","sha":"$lastCommit","merge_method":"squash"}""")
+                    }
+
+                    // delete the tmp branch
+                    DELETE("git/refs/heads/tmp")
+                }
+            }
         }
     }
 }
@@ -258,10 +266,8 @@ fun RepositoryHandler.github(owner: String, repo: String) =
 
 /** publishing/repositories scope */
 fun RepositoryHandler.github(block: GithubArtifactRepository.() -> Unit) {
-    val gh = GithubArtifactRepository()
-    gh.url = configuringProject.run { uri(layout.buildDirectory.dir("repo")) }
+    val gh = GithubArtifactRepository(configuringProject)
     gh.block()
-    //    githubContainer.get().parameters.repositories.get() += gh
     githubs += gh
     maven {
         name = gh.name
@@ -269,13 +275,13 @@ fun RepositoryHandler.github(block: GithubArtifactRepository.() -> Unit) {
     }
 }
 
-class GithubArtifactRepository : ArtifactRepository {
+class GithubArtifactRepository(val project: Project) : ArtifactRepository {
 
     private var n = "github"
 
     lateinit var domain: String
 
-    lateinit var url: URI
+    val url = project.run { uri(layout.buildDirectory.dir("repo")) }
 
     internal val repo: String
         get() = domain.substringAfter('/')
@@ -289,21 +295,21 @@ class GithubArtifactRepository : ArtifactRepository {
     override fun content(configureAction: Action<in RepositoryContentDescriptor>) = TODO("Not yet implemented")
 }
 
-enum class SoftwareComponent { java, javaPlatform, war }
-
+//enum class SoftwareComponent { java, javaPlatform, war }
+//
 /** There are only three types of publications: java, platform and war. We default on the most common one */
-fun MavenPublication.alsoSnapshot(component: SoftwareComponent = SoftwareComponent.java,
-                                  postfix: (gitDistance: Int) -> String = { "+$gitDistance" }) {
-    val pub = this
-    configuringProject.extensions.getByName<PublishingExtension>("publishing").publications {
-        create<MavenPublication>("${pub.name}Snapshot") {
-            groupId = pub.groupId
-            artifactId = pub.artifactId
-            version = "${pub.version}${postfix(gitDistance)}"
-            from(configuringProject.components[component.name])
-        }
-    }
-}
+//fun MavenPublication.alsoSnapshot(component: SoftwareComponent = SoftwareComponent.java,
+//                                  postfix: (gitDistance: Int) -> String = { "+$gitDistance" }) {
+//    val pub = this
+//    configuringProject.extensions.getByName<PublishingExtension>("publishing").publications {
+//        create<MavenPublication>("${pub.name}Snapshot") {
+//            groupId = pub.groupId
+//            artifactId = pub.artifactId
+//            version = "${pub.version}${postfix(gitDistance)}"
+//            from(configuringProject.components[component.name])
+//        }
+//    }
+//}
 
 val gitDescribe: String
     get() = configuringProject.exec("git describe --tags")
@@ -315,3 +321,22 @@ val gitDistance: Int
         } catch (ex: Exception) {
             -1
         }
+
+class GithubPublicationScope(val releasePublication: MavenPublication) {
+
+    inline fun addSnapshotPublication(crossinline block: MavenPublication.() -> Unit = {}) {
+        configuringProject.extensions.getByName<PublishingExtension>("publishing").publications {
+            create<MavenPublication>("${releasePublication.name}Snapshot") {
+                groupId = releasePublication.groupId
+                artifactId = releasePublication.artifactId
+                version = "${releasePublication.version}+$gitDistance"
+                releasePublication::class.java.declaredMethods.find { it.name == "getComponent" }?.let {
+                    val cmp = it(releasePublication) as SoftwareComponentInternal
+                    from(configuringProject.components[cmp.name])
+                }
+            }.block()
+        }
+    }
+}
+
+inline fun MavenPublication.github(block: GithubPublicationScope.() -> Unit) = GithubPublicationScope(this).block()
