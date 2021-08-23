@@ -15,15 +15,17 @@ What this plugin does is the following:
 - merges the same PR back to master by squashing all the commits into a single one
 - deletes the `tmp` branch
 
-![image](https://img.devrant.com/devrant/rant/r_2516404_bkZxN.jpg)
 
 Welcome [Magik](https://plugins.gradle.org/plugin/elect86.magik) (MAven repository on Github written In Kotlin)
 
 ```
 plugins {
-  id("elect86.magik") version "0.0.8"
+  id("elect86.magik") version "0.0.9"
 }
 ```
+
+
+![image](https://img.devrant.com/devrant/rant/r_2516404_bkZxN.jpg)
 
 ### How to use
 
@@ -49,9 +51,15 @@ publishing {
             version = "0.1"
 
             from(components["java"])
-        }.alsoSnapshot() // this clones the publication for snapshots 
-        // eg: publishMavenPublicationToGithubRepository -> 
-        //     publishMavenSnapshotPublicationToGithubRepository
+        }.github {
+            // this adds another (snapshot) publication, copying from the previous one: 
+            // - gav coordinates 
+            // - component type (java, javaPlatform or war)
+            // - name, by default appended with the `Snapshot` postfix, 
+            // eg: publishMavenPublicationToGithubRepository ->
+            // ->  publishMavenSnapshotPublicationToGithubRepository
+            addSnapshotPublication()
+        }
     }
     // don't use `repositories.github(..)`, it won't work
     // the dsl construct is necessary to distinguish it from a consume-only repo
@@ -87,14 +95,29 @@ repositories {
 
 ### Settings
 
-Sometimes it happens you forget to commit before publishing. In order to avoid these situations, the default setting will warn you whenever you are committing while there are changes to be committed or not staged for commit.
-This requires `git` being available on path though.
+Sometimes it happens you forget to commit before publishing. In order to avoid these situations, 
+the default setting `commitWithChanges` will warn you whenever you are committing while there are changes to be committed or 
+not staged for commit.
 
-If you want to overwrite this setting
+This requires `git` being available on path though, which is automatically set at begin with `gitOnPath`.
+
+`defaultCommitWithChanges` will instead automatically highlight the given answer when asking if you
+want to commit anyway with changes.
+
+`dryRun` for running without uploading anything.
+
+`verbose` is self explanatory.
 
 ```kotlin
 magik {
-    commitAnywayWithChanges.set(true)
+    commitWithChanges.convention(false)
+    defaultCommitWithChanges.convention(false)
+    gitOnPath.convention(configuringProject.exec {
+        commandLine("git", "--version")
+        standardOutput = ByteArrayOutputStream() // disable output with a dummy instance
+    }.exitValue == 0)
+    dryRun.convention(false)
+    verbose.convention(false)
 }
 ```
 
