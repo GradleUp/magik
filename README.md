@@ -99,7 +99,7 @@ Sometimes it happens you forget to commit before publishing. In order to avoid t
 the default setting `commitWithChanges` will warn you whenever you are committing while there are changes to be committed or 
 not staged for commit.
 
-This requires `git` being available on path though, which is automatically set at begin with `gitOnPath`.
+This requires `git` being available on path though, which is automatically set at begin in `gitOnPath`.
 
 `defaultCommitWithChanges` will instead automatically highlight the given answer when asking if you
 want to commit anyway with changes.
