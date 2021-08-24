@@ -7,7 +7,7 @@ I was tired of Github Packages requiring authentication even for public access, 
 
 Usually it was already possible doing something like that, but this implicitely meant you had to have the repo cloned locally and manually committ and push. Now these limitations are gone, allowing for even faster development cycles.
 
-What this plugin does is the following:
+What this plugin does is the following, for each project/module:
 - publishes locally to `$buildDir/repo`
 - creates a `tmp` branch on the github repo
 - uploads file by file
@@ -99,7 +99,7 @@ Sometimes it happens you forget to commit before publishing. In order to avoid t
 the default setting `commitWithChanges` will warn you whenever you are committing while there are changes to be committed or 
 not staged for commit.
 
-This requires `git` being available on path though, which is automatically set at begin with `gitOnPath`.
+This requires `git` being available on path though, which is automatically set at begin in `gitOnPath`.
 
 `defaultCommitWithChanges` will instead automatically highlight the given answer when asking if you
 want to commit anyway with changes.
@@ -122,7 +122,8 @@ magik {
 ```
 
 
-### Known limitations for Github repositories
+### Github known limitations
 
-max 100GB total repo size, max 100MB size per file
+- every repository has an hard limit of 100 GB for its total size
+- every file has an hard limit of 100 MB for its size
 
