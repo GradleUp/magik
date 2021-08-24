@@ -122,7 +122,7 @@ magik {
 ```
 
 
-### Known limitations for Github repositories
+### Known limitations
 
-max 100GB total repo size, max 100MB size per file
+- each Github repository has an hard limit of 100 GB for the total size and 100 MB size per each file.
 
