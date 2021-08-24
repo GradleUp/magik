@@ -84,7 +84,7 @@ lateinit var configuringProject: Project
 class MagikPlugin : Plugin<Project> {
 
     override fun apply(project: Project) {
-        //        println(project.name)
+        //        println("apply($project)")
         // Register the service
         //        githubContainer = project.gradle.sharedServices.registerIfAbsent("githubContainer", GithubContainer::class.java) {}
 
@@ -102,7 +102,7 @@ class MagikPlugin : Plugin<Project> {
 
         project.tasks.configureEach {
 
-            val gh = githubs.first { it.project == project }
+            val gh = githubs.find { it.project == project } ?: return@configureEach
             //            if (setting.verbose.get()) println(gh.project)
             val ghName = gh.name.capitalize()
             val postFix = "PublicationTo${ghName}Repository"
@@ -122,8 +122,28 @@ class MagikPlugin : Plugin<Project> {
             } as MavenPublication
 
             // delete first any previously local publication
-            File(gh.url).deleteRecursively()
-            if (setting.verbose.get()) println("delete first any previously local publication at ${gh.url}")
+            File(repo.url).deleteRecursively()
+            if (setting.verbose.get()) println("delete first any previously local publication at ${repo.url}")
+
+            operator fun Method.invoke(relativeUri: String, debugRequest: Boolean = false,
+                                       debugResponse: Boolean = false, is404fine: Boolean = false,
+                                       block: (Request.() -> Request)? = null): Response {
+                var request = Request(this, "https://api.github.com/repos/${gh.domain}/$relativeUri")
+                    .header("Accept", "application/vnd.github.v3+json")
+                    .header("Authorization", "token ${project.property("${gh.name}Token")!!}")
+                if (debugRequest)
+                    println(request)
+                if (block != null)
+                    request = request.block()
+                return JavaHttpClient()(request).apply {
+                    close()
+                    if (debugResponse)
+                        println(this)
+                    if (!status.successful)
+                        if (status != Status.NOT_FOUND || !is404fine)
+                            error("$status\n$request\n(${request.toCurl()}\n$this")
+                }
+            }
 
             var proceed = true
             doFirst {
@@ -147,9 +167,20 @@ class MagikPlugin : Plugin<Project> {
                         }
                     }
                     proceed = proceed()
-                    if (proceed)
+                    if (proceed) {
                         println("..continuing the publication with uncommited local changes..")
-                    else
+                        // download maven-metadata.xml to avoid overwrites and keep track of previous releases/snapshots
+                        val gas = publ.groupId.split('.') + publ.artifactId
+                        val ga = gas.joinToString(File.separator)
+                        val metadata = File(repo.url).resolve(ga).run {
+                            mkdirs()
+                            resolve("maven-metadata_.xml")
+                        }.apply { createNewFile() }
+                        val request = Request(GET, "https://raw.githubusercontent.com/${gh.domain}/master/$ga/maven-metadata.xml")
+                            .header("Accept", "application/vnd.github.v3+json")
+                            .header("Authorization", "token ${project.property("${gh.name}Token")!!}")
+                        metadata.writeText(JavaHttpClient()(request).bodyString())
+                    } else
                         println("aborting, please commit or revert your local changes before proceeding publishing")
                 }
             }
@@ -158,25 +189,6 @@ class MagikPlugin : Plugin<Project> {
                 if (!proceed)
                     return@doLast
                 //                                        println(project.displayName)
-                operator fun Method.invoke(relativeUri: String, debugRequest: Boolean = false,
-                                           debugResponse: Boolean = false, is404fine: Boolean = false,
-                                           block: (Request.() -> Request)? = null): Response {
-                    var request = Request(this, "https://api.github.com/repos/${gh.domain}/$relativeUri")
-                        .header("Accept", "application/vnd.github.v3+json")
-                        .header("Authorization", "token ${project.property("${gh.name}Token")!!}")
-                    if (debugRequest)
-                        println(request)
-                    if (block != null)
-                        request = request.block()
-                    return JavaHttpClient()(request).apply {
-                        close()
-                        if (debugResponse)
-                            println(this)
-                        if (!status.successful)
-                            if (status != Status.NOT_FOUND || !is404fine)
-                                error("$status\n$request\n(${request.toCurl()}\n$this")
-                    }
-                }
 
                 if (!setting.dryRun.get()) {
                     // save commit revision
@@ -271,7 +283,7 @@ fun RepositoryHandler.github(block: GithubArtifactRepository.() -> Unit) {
     githubs += gh
     maven {
         name = gh.name
-        url = gh.url
+        url = configuringProject.run { uri(layout.buildDirectory.dir("repo")) }
     }
 }
 
@@ -280,8 +292,6 @@ class GithubArtifactRepository(val project: Project) : ArtifactRepository {
     private var n = "github"
 
     lateinit var domain: String
-
-    val url = project.run { uri(layout.buildDirectory.dir("repo")) }
 
     internal val repo: String
         get() = domain.substringAfter('/')
