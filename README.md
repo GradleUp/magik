@@ -122,7 +122,8 @@ magik {
 ```
 
 
-### Known limitations
+### Github known limitations
 
-- each Github repository has an hard limit of 100 GB for the total size and 100 MB size per each file.
+- every repository has an hard limit of 100 GB for its total size
+- every file has an hard limit of 100 MB for its size
 
