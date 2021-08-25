@@ -104,6 +104,8 @@ This requires `git` being available on path though, which is automatically set a
 `defaultCommitWithChanges` will instead automatically highlight the given answer when asking if you
 want to commit anyway with changes.
 
+> [magik] Do you want to continue publishing anyway? Y/[N]:
+
 `dryRun` for running without uploading anything.
 
 `verbose` is self explanatory.

@@ -174,7 +174,7 @@ class MagikPlugin : Plugin<Project> {
                         val ga = gas.joinToString(File.separator)
                         val metadata = File(repo.url).resolve(ga).run {
                             mkdirs()
-                            resolve("maven-metadata_.xml")
+                            resolve("maven-metadata.xml")
                         }.apply { createNewFile() }
                         val request = Request(GET, "https://raw.githubusercontent.com/${gh.domain}/master/$ga/maven-metadata.xml")
                             .header("Accept", "application/vnd.github.v3+json")
@@ -222,39 +222,40 @@ class MagikPlugin : Plugin<Project> {
                     }
                 }
 
-                if (!setting.dryRun.get()) {
-                    val gav = "${publ.groupId}:${publ.artifactId}:${publ.version}"
+                if (setting.dryRun.get())
+                    return@doLast
 
-                    // create the PR
-                    POST("pulls") {
-                        body("""{"repo":"${gh.repo}","title":"$gav","head":"tmp","base":"master","body":"$gav"}""")
-                    }
+                val gav = "${publ.groupId}:${publ.artifactId}:${publ.version}"
 
-                    // retrieve the PR number
-                    val pr = run {
-                        // retrieve all the PRs (it should be just one) and read its number
-                        val body = GET("pulls").bodyString()
-                        val ofs = body.indexOf(""","number":""") + 10
-                        // let's give it a couple of digits, before parsing
-                        val number = body.substring(ofs, ofs + 5)
-                        number.takeWhile { it.isDigit() }.toInt()
-                    }
-
-                    // the current head on `tmp` branch
-                    val lastCommit = run {
-                        val body = GET("commits/tmp").bodyString()
-                        val ofs = body.indexOf("\"sha\":\"") + 7
-                        body.substring(ofs, ofs + 40)
-                    }
-
-                    // we have now everything to merge the PR
-                    PUT("pulls/$pr/merge") {
-                        body("""{"repo":"${gh.repo}","pull_number":"$pr","commit_title":"$gav","sha":"$lastCommit","merge_method":"squash"}""")
-                    }
-
-                    // delete the tmp branch
-                    DELETE("git/refs/heads/tmp")
+                // create the PR
+                POST("pulls") {
+                    body("""{"repo":"${gh.repo}","title":"$gav","head":"tmp","base":"master","body":"$gav"}""")
                 }
+
+                // retrieve the PR number
+                val pr = run {
+                    // retrieve all the PRs (it should be just one) and read its number
+                    val body = GET("pulls").bodyString()
+                    val ofs = body.indexOf(""","number":""") + 10
+                    // let's give it a couple of digits, before parsing
+                    val number = body.substring(ofs, ofs + 5)
+                    number.takeWhile { it.isDigit() }.toInt()
+                }
+
+                // the current head on `tmp` branch
+                val lastCommit = run {
+                    val body = GET("commits/tmp").bodyString()
+                    val ofs = body.indexOf("\"sha\":\"") + 7
+                    body.substring(ofs, ofs + 40)
+                }
+
+                // we have now everything to merge the PR
+                PUT("pulls/$pr/merge") {
+                    body("""{"repo":"${gh.repo}","pull_number":"$pr","commit_title":"$gav","sha":"$lastCommit","merge_method":"squash"}""")
+                }
+
+                // delete the tmp branch
+                DELETE("git/refs/heads/tmp")
             }
         }
     }
