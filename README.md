@@ -8,7 +8,7 @@ I was tired of Github Packages requiring authentication even for public access, 
 Usually it was already possible doing something like that, but this implicitely meant you had to have the repo cloned locally and manually committ and push. Now these limitations are gone, allowing for even faster development cycles.
 
 What this plugin does is the following, for each project/module:
-- publishes locally to `$buildDir/repo`
+- publishes locally to `$buildDir/repo`, but before doing this, it will download in advance `metadata-maven.xml` in order to avoid resetting/overwrite with a single entry every time and having gradle properly modify it instead
 - creates a `tmp` branch on the github repo
 - uploads file by file
 - creates a PR
