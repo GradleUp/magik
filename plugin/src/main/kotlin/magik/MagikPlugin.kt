@@ -252,6 +252,8 @@ class MagikPlugin : Plugin<Project> {
 
                 // delete the tmp branch
                 DELETE("git/refs/heads/tmp")
+
+                println("$gav published on ${gh.domain}!")
             }
         }
     }
