@@ -7,9 +7,15 @@ import org.gradle.api.artifacts.dsl.RepositoryHandler
 import org.gradle.api.artifacts.repositories.ArtifactRepository
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository
 import org.gradle.api.artifacts.repositories.RepositoryContentDescriptor
+import org.gradle.api.component.SoftwareComponent
 import org.gradle.api.internal.component.SoftwareComponentInternal
 import org.gradle.api.provider.Property
+import org.gradle.api.publish.PublicationContainer
 import org.gradle.api.publish.PublishingExtension
+import org.gradle.api.publish.VersionMappingStrategy
+import org.gradle.api.publish.maven.MavenArtifact
+import org.gradle.api.publish.maven.MavenArtifactSet
+import org.gradle.api.publish.maven.MavenPom
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.Input
 import org.gradle.kotlin.dsl.create
@@ -163,21 +169,23 @@ class MagikPlugin : Plugin<Project> {
                         }
                     }
                     proceed = proceed()
-                    if (proceed) {
-                        println("..continuing the publication with uncommited local changes..")
-                        // download maven-metadata.xml to avoid overwrites and keep track of previous releases/snapshots
-                        val gas = publ.groupId.split('.') + publ.artifactId
-                        val ga = gas.joinToString(File.separator)
-                        val metadata = File(repo.url).resolve(ga).run {
-                            mkdirs()
-                            resolve("maven-metadata.xml")
-                        }.apply { createNewFile() }
-                        val request = Request(GET, "https://raw.githubusercontent.com/${gh.domain}/master/$ga/maven-metadata.xml")
-                            .header("Accept", "application/vnd.github.v3+json")
-                            .header("Authorization", "token ${project.property("${gh.name}Token")!!}")
-                        metadata.writeText(JavaHttpClient()(request).bodyString())
-                    } else
-                        println("aborting, please commit or revert your local changes before proceeding publishing")
+                    println(when {
+                        proceed -> "..continuing the publication with uncommited local changes.."
+                        else -> "aborting, please commit or revert your local changes before proceeding publishing"
+                    })
+                }
+                if (proceed) {
+                    // download maven-metadata.xml to avoid overwrites and keep track of previous releases/snapshots
+                    val gas = publ.groupId.split('.') + publ.artifactId
+                    val ga = gas.joinToString(File.separator)
+                    val metadata = File(repo.url).resolve(ga).run {
+                        mkdirs()
+                        resolve("maven-metadata.xml")
+                    }.apply { createNewFile() }
+                    val request = Request(GET, "https://raw.githubusercontent.com/${gh.domain}/master/$ga/maven-metadata.xml")
+                        .header("Accept", "application/vnd.github.v3+json")
+                        .header("Authorization", "token ${project.property("${gh.name}Token")!!}")
+                    metadata.writeText(JavaHttpClient()(request).bodyString())
                 }
             }
 
@@ -302,22 +310,6 @@ class GithubArtifactRepository(val project: Project) : ArtifactRepository {
     override fun content(configureAction: Action<in RepositoryContentDescriptor>) = TODO("Not yet implemented")
 }
 
-//enum class SoftwareComponent { java, javaPlatform, war }
-//
-/** There are only three types of publications: java, platform and war. We default on the most common one */
-//fun MavenPublication.alsoSnapshot(component: SoftwareComponent = SoftwareComponent.java,
-//                                  postfix: (gitDistance: Int) -> String = { "+$gitDistance" }) {
-//    val pub = this
-//    configuringProject.extensions.getByName<PublishingExtension>("publishing").publications {
-//        create<MavenPublication>("${pub.name}Snapshot") {
-//            groupId = pub.groupId
-//            artifactId = pub.artifactId
-//            version = "${pub.version}${postfix(gitDistance)}"
-//            from(configuringProject.components[component.name])
-//        }
-//    }
-//}
-
 val gitDescribe: String
     get() = configuringProject.exec("git describe --tags")
 
@@ -327,6 +319,24 @@ val gitDistance: Int
     } catch (ex: Exception) {
         -1
     }
+
+inline fun PublicationContainer.createGithubPublication(name: String = "maven",
+                                                        addSnapshot: Boolean = false,
+                                                        noinline block: MavenPublication.() -> Unit) {
+    create(name, block)
+    if (addSnapshot)
+        create("${name}Snapshot", block)
+}
+
+inline fun PublicationContainer.createGithubPublication(name: String,
+                                                        snapshotName: String,
+                                                        noinline postfix: (Int) -> String = { "+$it" },
+                                                        noinline block: MavenPublication.() -> Unit) {
+    val release = create(name, block)
+    val snapshot = create(snapshotName, block)
+    snapshot.version = "${release.version}${postfix(gitDistance)}"
+}
+
 
 class GithubPublicationScope(val releasePublication: MavenPublication) {
 
