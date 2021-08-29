@@ -7,19 +7,13 @@ import org.gradle.api.artifacts.dsl.RepositoryHandler
 import org.gradle.api.artifacts.repositories.ArtifactRepository
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository
 import org.gradle.api.artifacts.repositories.RepositoryContentDescriptor
-import org.gradle.api.component.SoftwareComponent
-import org.gradle.api.internal.component.SoftwareComponentInternal
 import org.gradle.api.provider.Property
 import org.gradle.api.publish.PublicationContainer
 import org.gradle.api.publish.PublishingExtension
-import org.gradle.api.publish.VersionMappingStrategy
-import org.gradle.api.publish.maven.MavenArtifact
-import org.gradle.api.publish.maven.MavenArtifactSet
-import org.gradle.api.publish.maven.MavenPom
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.Input
 import org.gradle.kotlin.dsl.create
-import org.gradle.kotlin.dsl.get
+import org.gradle.kotlin.dsl.findByType
 import org.gradle.kotlin.dsl.getByName
 import org.gradle.kotlin.dsl.maven
 import org.http4k.client.JavaHttpClient
@@ -49,6 +43,12 @@ abstract class MagikExtension {
     @get:Input
     abstract val verbose: Property<Boolean>
 
+    @get:Input
+    abstract val defaultSnapshotNamePostfix: Property<String>
+
+    @get:Input
+    abstract val defaultSnapshotVersionPostfix: Property<(gitDistance: Int) -> String>
+
     init {
         commitWithChanges.convention(false)
         defaultCommitWithChanges.convention(false)
@@ -58,6 +58,8 @@ abstract class MagikExtension {
         }.exitValue == 0)
         dryRun.convention(false)
         verbose.convention(false)
+        defaultSnapshotNamePostfix.convention("Snapshot")
+        defaultSnapshotVersionPostfix.convention { "+$it" }
     }
 }
 
@@ -114,7 +116,11 @@ class MagikPlugin : Plugin<Project> {
             if (!found)
                 return@configureEach
 
-            if (setting.verbose.get()) println("$this, $name .. appending")
+            fun verbose(text: Any) {
+                if (setting.verbose.get()) println(text)
+            }
+
+            verbose("$this, $name .. appending")
 
             val ext = project.extensions.getByName<PublishingExtension>("publishing")
             val ignoreCase = true
@@ -125,7 +131,7 @@ class MagikPlugin : Plugin<Project> {
 
             // delete first any previously local publication
             File(repo.url).deleteRecursively()
-            if (setting.verbose.get()) println("delete first any previously local publication at ${repo.url}")
+            verbose("delete first any previously local publication at ${repo.url}")
 
             operator fun Method.invoke(relativeUri: String, debugRequest: Boolean = false,
                                        debugResponse: Boolean = false, is404fine: Boolean = false,
@@ -170,9 +176,9 @@ class MagikPlugin : Plugin<Project> {
                     }
                     proceed = proceed()
                     println(when {
-                        proceed -> "..continuing the publication with uncommited local changes.."
-                        else -> "aborting, please commit or revert your local changes before proceeding publishing"
-                    })
+                                proceed -> "..continuing the publication with uncommited local changes.."
+                                else -> "aborting, please commit or revert your local changes before proceeding publishing"
+                            })
                 }
                 if (proceed) {
                     // download maven-metadata.xml to avoid overwrites and keep track of previous releases/snapshots
@@ -197,7 +203,7 @@ class MagikPlugin : Plugin<Project> {
                 if (!setting.dryRun.get()) {
                     // save commit revision
                     val rev = GET("git/refs/heads").bodyString().sha
-                    if (setting.verbose.get()) println("rev: $rev")
+                    verbose("rev: $rev")
 
                     // create tmp branch via a reference
                     POST("git/refs") {
@@ -207,10 +213,10 @@ class MagikPlugin : Plugin<Project> {
 
                 // create/update every file on tmp
                 val dir = File(repo.url)
-                if (setting.verbose.get()) println("dir: $dir")
+                verbose("dir: $dir")
                 dir.walk().forEach { file ->
                     if (file.isFile) {
-                        if (setting.verbose.get()) println(file)
+                        verbose(file)
                         if (!setting.dryRun.get()) {
                             val path = file.toRelativeString(dir).replace('\\', '/')
                             val response = GET("contents/$path", is404fine = true)
@@ -320,39 +326,26 @@ val gitDistance: Int
         -1
     }
 
-inline fun PublicationContainer.createGithubPublication(name: String = "maven",
-                                                        addSnapshot: Boolean = false,
-                                                        noinline block: MavenPublication.() -> Unit) {
+fun PublicationContainer.createGithubPublication(name: String = "maven",
+                                                 block: MavenPublication.() -> Unit) {
+    currentSnapshot = null
     create(name, block)
-    if (addSnapshot)
-        create("${name}Snapshot", block)
-}
-
-inline fun PublicationContainer.createGithubPublication(name: String,
-                                                        snapshotName: String,
-                                                        noinline postfix: (Int) -> String = { "+$it" },
-                                                        noinline block: MavenPublication.() -> Unit) {
-    val release = create(name, block)
-    val snapshot = create(snapshotName, block)
-    snapshot.version = "${release.version}${postfix(gitDistance)}"
-}
-
-
-class GithubPublicationScope(val releasePublication: MavenPublication) {
-
-    inline fun addSnapshotPublication(crossinline block: MavenPublication.() -> Unit = {}) {
-        configuringProject.extensions.getByName<PublishingExtension>("publishing").publications {
-            create<MavenPublication>("${releasePublication.name}Snapshot") {
-                groupId = releasePublication.groupId
-                artifactId = releasePublication.artifactId
-                version = "${releasePublication.version}+$gitDistance"
-                releasePublication::class.java.declaredMethods.find { it.name == "getComponent" }?.let {
-                    val cmp = it(releasePublication) as SoftwareComponentInternal
-                    from(configuringProject.components[cmp.name])
-                }
-            }.block()
-        }
+    currentSnapshot?.let {
+        create(it.name, block).version = it.version
+        currentSnapshot = null
     }
 }
 
-inline fun MavenPublication.github(block: GithubPublicationScope.() -> Unit) = GithubPublicationScope(this).block()
+class GithubSnapshotPublication(var name: String, var version: String)
+
+var currentSnapshot: GithubSnapshotPublication? = null
+
+fun MavenPublication.addSnapshotPublication(block: GithubSnapshotPublication.() -> Unit = {}) {
+    if (currentSnapshot != null)
+    // we don't want to recursively create another snapshot when already creating a snapshot
+        return
+    val setting = configuringProject.extensions.getByName<MagikExtension>("magik")
+    val name = "$name${setting.defaultSnapshotNamePostfix.get()}"
+    val version = "$version+${setting.defaultSnapshotVersionPostfix.get()(gitDistance)}"
+    currentSnapshot = GithubSnapshotPublication(name, version).apply(block)
+}
