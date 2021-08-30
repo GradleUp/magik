@@ -82,27 +82,16 @@ val githubs = ArrayList<GithubArtifactRepository>()
 // i-th project reference in order to automatically set as default, a `repo` directory in the build one
 lateinit var configuringProject: Project
 
-/**
- * A simple 'hello world' plugin.
- */
+
 class MagikPlugin : Plugin<Project> {
 
     override fun apply(project: Project) {
         //        println("apply($project)")
-        // Register the service
-        //        githubContainer = project.gradle.sharedServices.registerIfAbsent("githubContainer", GithubContainer::class.java) {}
 
         configuringProject = project
 
         // Add the 'greeting' extension object
         val setting = project.extensions.create<MagikExtension>("magik")
-
-        // Register a task
-        project.tasks.register("greeting") {
-            doLast {
-                println("Hello from plugin 'magik.greeting'")
-            }
-        }
 
         project.tasks.configureEach {
 

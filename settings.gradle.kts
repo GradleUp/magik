@@ -9,3 +9,4 @@
 
 rootProject.name = "magik"
 include("plugin")
+include("lwjgl")
