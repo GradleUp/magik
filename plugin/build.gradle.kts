@@ -20,16 +20,16 @@ repositories {
 
 dependencies {
     // Align versions of all Kotlin components
-    implementation(platform("org.jetbrains.kotlin:kotlin-bom"))
+    implementation(platform(kotlin("bom")))
 
     // Use the Kotlin JDK 8 standard library.
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+    implementation(kotlin("stdlib-jdk8"))
 
     // Use the Kotlin test library.
-    testImplementation("org.jetbrains.kotlin:kotlin-test")
+    testImplementation(kotlin("test"))
 
     // Use the Kotlin JUnit integration.
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit")
+    testImplementation(kotlin("test-junit"))
 
     implementation(platform("org.http4k:http4k-bom:4.9.0.2"))
     implementation("org.http4k:http4k-core")
@@ -40,7 +40,7 @@ dependencies {
 }
 
 group = "com.github.elect86"
-version = "0.1.5"
+version = "0.1.7"
 
 gradlePlugin {
     // Define the plugin
@@ -76,5 +76,6 @@ tasks.check {
 }
 
 tasks.compileJava {
-
+    sourceCompatibility = "1.8"
+    targetCompatibility = "1.8"
 }
