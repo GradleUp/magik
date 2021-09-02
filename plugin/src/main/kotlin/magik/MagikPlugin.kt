@@ -23,6 +23,7 @@ import java.io.BufferedReader
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStreamReader
+import java.net.URL
 import java.util.*
 
 
@@ -177,10 +178,13 @@ class MagikPlugin : Plugin<Project> {
                         mkdirs()
                         resolve("maven-metadata.xml")
                     }.apply { createNewFile() }
+                    val url = URL("https://raw.githubusercontent.com/${gh.domain}/master/$ga/maven-metadata.xml")
                     val request = Request(GET, "https://raw.githubusercontent.com/${gh.domain}/master/$ga/maven-metadata.xml")
                         .header("Accept", "application/vnd.github.v3+json")
                         .header("Authorization", "token ${project.property("${gh.name}Token")!!}")
-                    metadata.writeText(JavaHttpClient()(request).bodyString())
+                    val response = JavaHttpClient()(request)
+                    if (response.status != Status.NOT_FOUND)    // file doesn't exist
+                        metadata.writeText(response.bodyString())
                 }
             }
 
