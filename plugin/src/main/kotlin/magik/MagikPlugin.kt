@@ -174,17 +174,18 @@ class MagikPlugin : Plugin<Project> {
                     // download maven-metadata.xml to avoid overwrites and keep track of previous releases/snapshots
                     val gas = publ.groupId.split('.') + publ.artifactId
                     val ga = gas.joinToString(File.separator)
-                    val metadata = File(repo.url).resolve(ga).run {
-                        mkdirs()
-                        resolve("maven-metadata.xml")
-                    }.apply { createNewFile() }
-                    val url = URL("https://raw.githubusercontent.com/${gh.domain}/master/$ga/maven-metadata.xml")
                     val request = Request(GET, "https://raw.githubusercontent.com/${gh.domain}/master/$ga/maven-metadata.xml")
                         .header("Accept", "application/vnd.github.v3+json")
                         .header("Authorization", "token ${project.property("${gh.name}Token")!!}")
                     val response = JavaHttpClient()(request)
-                    if (response.status != Status.NOT_FOUND)    // file doesn't exist
-                        metadata.writeText(response.bodyString())
+                    if (response.status != Status.NOT_FOUND)   // file doesn't exist
+                        File(repo.url).resolve(ga).run {
+                            mkdirs()
+                            resolve("maven-metadata.xml")
+                        }.apply {
+                            createNewFile()
+                            writeText(response.bodyString())
+                        }
                 }
             }
 
