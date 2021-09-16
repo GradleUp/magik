@@ -178,7 +178,8 @@ class MagikPlugin : Plugin<Project> {
                         .header("Accept", "application/vnd.github.v3+json")
                         .header("Authorization", "token ${project.property("${gh.name}Token")!!}")
                     val response = JavaHttpClient()(request)
-                    if (response.status != Status.NOT_FOUND)   // file doesn't exist
+                    // file doesn't exist or is the first publishing ever
+                    if (response.status != Status.NOT_FOUND && response.status != Status.MOVED_PERMANENTLY)
                         File(repo.url).resolve(ga).run {
                             mkdirs()
                             resolve("maven-metadata.xml")
