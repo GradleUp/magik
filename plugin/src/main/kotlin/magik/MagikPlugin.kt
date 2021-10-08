@@ -138,8 +138,13 @@ class MagikPlugin : Plugin<Project> {
                     if (debugResponse)
                         println(this)
                     if (!status.successful)
-                        if (status != Status.NOT_FOUND || !is404fine)
-                            error("$status\n$request\n(${request.toCurl()}\n$this")
+                        when {
+                            status == Status.BAD_GATEWAY -> {
+                                println("Bad Gateway, trying again..")
+                                invoke(relativeUri, debugRequest, debugResponse, is404fine, block)
+                            }
+                            status != Status.NOT_FOUND || !is404fine -> error("$status\n$request\n(${request.toCurl()}\n$this")
+                        }
                 }
             }
 

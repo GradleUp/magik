@@ -40,7 +40,7 @@ dependencies {
 }
 
 group = "com.github.elect86"
-version = "0.2.1"
+version = "0.2.2"
 
 gradlePlugin {
     // Define the plugin
