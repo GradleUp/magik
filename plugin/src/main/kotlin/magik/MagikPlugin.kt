@@ -87,7 +87,7 @@ lateinit var configuringProject: Project
 class MagikPlugin : Plugin<Project> {
 
     override fun apply(project: Project) {
-        println("apply($project)")
+//        println("apply($project)")
 
         configuringProject = project
 
