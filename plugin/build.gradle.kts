@@ -8,7 +8,7 @@ plugins {
 
     `kotlin-dsl`
 
-    id("com.gradle.plugin-publish") version "0.15.0"
+    id("com.gradle.plugin-publish") version "0.16.0"
 
     `maven-publish`
 }
@@ -40,7 +40,13 @@ dependencies {
 }
 
 group = "com.github.elect86"
-version = "0.2.3"
+version = "0.2.4"
+
+publishing {
+    publications.create<MavenPublication>("maven") {
+        artifactId = rootProject.name
+    }
+}
 
 gradlePlugin {
     // Define the plugin
@@ -59,18 +65,18 @@ pluginBundle {
 }
 
 // Add a source set for the functional test suite
-val functionalTestSourceSet = sourceSets.create("functionalTest") {}
-
-gradlePlugin.testSourceSets(functionalTestSourceSet)
-configurations["functionalTestImplementation"].extendsFrom(configurations["testImplementation"])
-
-// Add a task to run the functional tests
-val functionalTest by tasks.registering(Test::class) {
-    testClassesDirs = functionalTestSourceSet.output.classesDirs
-    classpath = functionalTestSourceSet.runtimeClasspath
-}
-
-tasks.check {
-    // Run the functional tests as part of `check`
-    dependsOn(functionalTest)
-}
+//val functionalTestSourceSet = sourceSets.create("functionalTest") {}
+//
+//gradlePlugin.testSourceSets(functionalTestSourceSet)
+//configurations["functionalTestImplementation"].extendsFrom(configurations["testImplementation"])
+//
+//// Add a task to run the functional tests
+//val functionalTest by tasks.registering(Test::class) {
+//    testClassesDirs = functionalTestSourceSet.output.classesDirs
+//    classpath = functionalTestSourceSet.runtimeClasspath
+//}
+//
+//tasks.check {
+//    // Run the functional tests as part of `check`
+//    dependsOn(functionalTest)
+//}
