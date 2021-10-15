@@ -45,7 +45,9 @@ Take in account `github` is convention, you can change it with whatever you want
 ```kotlin
 publishing {
     publications {
-        create<MavenPublication>("maven") {
+         // you can pass a name to overwrite the default "github"
+         // createGithubPublication("my-name") 
+        createGithubPublication { this: MavenPublication
             groupId = "org.gradle.sample"
             artifactId = "prova"
             version = "0.1"
