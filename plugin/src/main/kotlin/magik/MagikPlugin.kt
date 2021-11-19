@@ -13,17 +13,15 @@ import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.Input
 import org.gradle.kotlin.dsl.create
-import org.gradle.kotlin.dsl.findByType
 import org.gradle.kotlin.dsl.getByName
 import org.gradle.kotlin.dsl.maven
-import org.http4k.client.JavaHttpClient
+import org.http4k.client.Java8HttpClient
 import org.http4k.core.*
 import org.http4k.core.Method.*
 import java.io.BufferedReader
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStreamReader
-import java.net.URL
 import java.util.*
 
 
@@ -133,7 +131,7 @@ class MagikPlugin : Plugin<Project> {
                     println(request)
                 if (block != null)
                     request = request.block()
-                return JavaHttpClient()(request).apply {
+                return Java8HttpClient()(request).apply {
                     close()
                     if (debugResponse)
                         println(this)
@@ -182,7 +180,7 @@ class MagikPlugin : Plugin<Project> {
                     val request = Request(GET, "https://raw.githubusercontent.com/${gh.domain}/master/$ga/maven-metadata.xml")
                         .header("Accept", "application/vnd.github.v3+json")
                         .header("Authorization", "token ${project.property("${gh.name}Token")!!}")
-                    val response = JavaHttpClient()(request)
+                    val response = Java8HttpClient()(request)
                     // file doesn't exist or is the first publishing ever
                     if (response.status != Status.NOT_FOUND && response.status != Status.MOVED_PERMANENTLY)
                         File(repo.url).resolve(ga).run {
