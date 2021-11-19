@@ -40,7 +40,7 @@ dependencies {
 }
 
 group = "com.github.elect86"
-version = "0.2.4"
+version = "0.2.5"
 
 publishing {
     publications.create<MavenPublication>("maven") {
@@ -62,6 +62,12 @@ pluginBundle {
     website = "https://github.com/elect86/magik"
     vcsUrl = "https://github.com/elect86/magik"
     tags = listOf("github", "repository", "maven", "kotlin", "publish", "publishing")
+}
+
+kotlin{
+    jvmToolchain {
+        (this as JavaToolchainSpec).languageVersion.set(JavaLanguageVersion.of(8))
+    }
 }
 
 // Add a source set for the functional test suite
