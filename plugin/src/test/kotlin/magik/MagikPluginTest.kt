@@ -14,9 +14,9 @@ class MagikPluginTest {
     @Test fun `plugin registers task`() {
         // Create a test project and apply the plugin
         val project = ProjectBuilder.builder().build()
-        project.plugins.apply("magik.greeting")
+        project.plugins.apply("elect86.magik")
 
         // Verify the result
-        assertNotNull(project.tasks.findByName("greeting"))
+        assertNotNull(project.extensions.findByName("magik"))
     }
 }

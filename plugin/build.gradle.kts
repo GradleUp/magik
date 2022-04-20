@@ -8,7 +8,7 @@ plugins {
 
     `kotlin-dsl`
 
-    id("com.gradle.plugin-publish") version "0.16.0"
+    id("com.gradle.plugin-publish") version "1.0.0-rc-1"
 
     `maven-publish`
 }
@@ -20,7 +20,7 @@ repositories {
 
 dependencies {
     // Align versions of all Kotlin components
-    implementation(platform(kotlin("bom")))
+    implementation(platform(kotlin("bom", version = embeddedKotlinVersion)))
 
     // Use the Kotlin JDK 8 standard library.
     implementation(kotlin("stdlib-jdk8"))
@@ -31,16 +31,16 @@ dependencies {
     // Use the Kotlin JUnit integration.
     testImplementation(kotlin("test-junit"))
 
-    implementation(platform("org.http4k:http4k-bom:4.9.0.2"))
+    implementation(platform("org.http4k:http4k-bom:4.25.8.0"))
     implementation("org.http4k:http4k-core")
     implementation("org.http4k:http4k-server-netty")
     implementation("org.http4k:http4k-client-apache")
 
-    implementation("com.google.code.gson:gson:2.8.7")
+    implementation("com.google.code.gson:gson:2.9.0")
 }
 
 group = "com.github.elect86"
-version = "0.2.5"
+version = "0.2.6"
 
 publishing {
     publications.create<MavenPublication>("maven") {
@@ -71,18 +71,26 @@ kotlin{
 }
 
 // Add a source set for the functional test suite
-//val functionalTestSourceSet = sourceSets.create("functionalTest") {}
-//
-//gradlePlugin.testSourceSets(functionalTestSourceSet)
-//configurations["functionalTestImplementation"].extendsFrom(configurations["testImplementation"])
-//
-//// Add a task to run the functional tests
-//val functionalTest by tasks.registering(Test::class) {
-//    testClassesDirs = functionalTestSourceSet.output.classesDirs
-//    classpath = functionalTestSourceSet.runtimeClasspath
-//}
-//
-//tasks.check {
-//    // Run the functional tests as part of `check`
-//    dependsOn(functionalTest)
-//}
+val functionalTestSourceSet = sourceSets.create("functionalTest") {}
+
+gradlePlugin.testSourceSets(functionalTestSourceSet)
+configurations["functionalTestImplementation"].extendsFrom(configurations["testImplementation"])
+
+// Add a task to run the functional tests
+val functionalTest by tasks.registering(Test::class) {
+    testClassesDirs = functionalTestSourceSet.output.classesDirs
+    classpath = functionalTestSourceSet.runtimeClasspath
+}
+
+tasks.check {
+    // Run the functional tests as part of `check`
+    dependsOn(functionalTest)
+}
+
+
+tasks {
+    register("copyRuntimeLibs", Copy::class) {
+        into("lib")
+        from(configurations.runtimeClasspath)
+    }
+}

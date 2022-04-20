@@ -14,24 +14,45 @@ import kotlin.test.assertTrue
 class MagikPluginFunctionalTest {
     @Test fun `can run task`() {
         // Setup the test build
-        val projectDir = File("build/functionalTest")
-        projectDir.mkdirs()
-        projectDir.resolve("settings.gradle").writeText("")
-        projectDir.resolve("build.gradle").writeText("""
-            plugins {
-                id('magik.greeting')
-            }
-        """)
+        val projectDir = File("build/functionalTest").apply {
+            mkdirs()
+            resolve("settings.gradle").writeText("")
+            resolve("build.gradle.kts").writeText("""
+                import magik.createGithubPublication
+                import magik.github
+                import org.gradle.kotlin.dsl.`maven-publish`
+                
+                plugins {
+                    id("elect86.magik")
+                    `maven-publish`
+                    `java-library`
+                }
+                
+                version = "0.1"
+                group = "groupTest"
+                
+                publishing {
+                    publications.createGithubPublication {
+                        artifactId = "artifactTest"
+                        //suppressPomMetadataWarningsFor("apiElements")
+                    }
+                    repositories {
+                        github {
+                            domain = "elect86/magik-test"
+                        }
+                    }
+                }""")
+        }
 
         // Run the build
         val runner = GradleRunner.create()
         runner.forwardOutput()
         runner.withPluginClasspath()
-        runner.withArguments("greeting")
+        runner.withArguments("tasks")
         runner.withProjectDir(projectDir)
-        val result = runner.build();
+        val result = runner.build()
 
         // Verify the result
-        assertTrue(result.output.contains("Hello from plugin 'magik.greeting'"))
+        //        assertTrue(result.output.contains("Hello from plugin 'magik.greeting'"))
     }
 }

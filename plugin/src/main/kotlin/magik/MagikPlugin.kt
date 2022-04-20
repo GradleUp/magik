@@ -3,6 +3,7 @@ package magik
 import org.gradle.api.Action
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.Task
 import org.gradle.api.artifacts.dsl.RepositoryHandler
 import org.gradle.api.artifacts.repositories.ArtifactRepository
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository
@@ -15,6 +16,7 @@ import org.gradle.api.tasks.Input
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.getByName
 import org.gradle.kotlin.dsl.maven
+import org.gradle.kotlin.dsl.register
 import org.http4k.client.Java8HttpClient
 import org.http4k.core.*
 import org.http4k.core.Method.*
@@ -85,6 +87,11 @@ lateinit var configuringProject: Project
 class MagikPlugin : Plugin<Project> {
 
     override fun apply(project: Project) {
+        project.tasks.register("greeting") {
+            doLast {
+                println("Hello from plugin 'terraform.kt.greeting'")
+            }
+        }
 //        println("apply($project)")
 
         configuringProject = project
