@@ -293,9 +293,9 @@ fun RepositoryHandler.github(domain: String) = maven("https://raw.githubusercont
 fun RepositoryHandler.github(owner: String, repo: String) = maven("https://raw.githubusercontent.com/$owner/$repo/master")
 
 /** publishing/repositories scope */
-fun RepositoryHandler.github(block: GithubArtifactRepository.() -> Unit) {
+fun RepositoryHandler.github(action: Action<GithubArtifactRepository>) {
     val gh = GithubArtifactRepository(configuringProject)
-    gh.block()
+    action.execute(gh)
     githubs += gh
     maven {
         name = gh.name
@@ -332,11 +332,11 @@ val gitDistance: Int
     }
 
 fun PublicationContainer.createGithubPublication(name: String = "maven",
-                                                 block: MavenPublication.() -> Unit) {
+                                                 action: Action<MavenPublication>) {
     currentSnapshot = null
-    create(name, block)
+    create<MavenPublication>(name)
     currentSnapshot?.let {
-        create(it.name, block).version = it.version
+        create<MavenPublication>(it.name).version = it.version
         currentSnapshot = null
     }
 }
