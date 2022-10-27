@@ -45,7 +45,7 @@ Take in account `github` is convention, you can change it with whatever you want
 ```kotlin
 publishing {
     publications {
-         // you can pass a name to overwrite the default "github"
+         // you can pass a name to overwrite the default "maven"
          // createGithubPublication("my-name") 
         createGithubPublication { this: MavenPublication
             groupId = "org.gradle.sample"
@@ -68,7 +68,7 @@ publishing {
     repositories {
         // don't use github(domain: String), that's for fetching, it won't work for publishing
         github {
-            // this is superfluous since `github` is the default value, but it determines 
+            // this is optional since `github` is the default value, but it determines 
             // the token name to fetch and the consequent publishing task name 
             // eg: publishMavenPublicationToGithubRepository
             name = "github" 
