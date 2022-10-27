@@ -334,7 +334,7 @@ val gitDistance: Int
 fun PublicationContainer.createGithubPublication(name: String = "maven",
                                                  action: Action<MavenPublication>) {
     currentSnapshot = null
-    create<MavenPublication>(name)
+    action.execute(create<MavenPublication>(name))
     currentSnapshot?.let {
         create<MavenPublication>(it.name).version = it.version
         currentSnapshot = null
