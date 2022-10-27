@@ -48,6 +48,7 @@ publishing {
          // you can pass a name to overwrite the default "maven"
          // createGithubPublication("my-name") 
         createGithubPublication { this: MavenPublication
+            // if your project already defines `groupId`, `artifactId` and `version`, then you can skip these here
             groupId = "org.gradle.sample"
             artifactId = "prova"
             version = "0.1"
