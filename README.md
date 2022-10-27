@@ -20,7 +20,7 @@ Welcome [Magik](https://plugins.gradle.org/plugin/elect86.magik) (MAven reposito
 
 ```
 plugins {
-  id("elect86.magik") version "0.2.4"
+  id("elect86.magik") version "0.2.7"
 }
 ```
 
@@ -45,9 +45,10 @@ Take in account `github` is convention, you can change it with whatever you want
 ```kotlin
 publishing {
     publications {
-         // you can pass a name to overwrite the default "github"
+         // you can pass a name to overwrite the default "maven"
          // createGithubPublication("my-name") 
         createGithubPublication { this: MavenPublication
+            // if your project already defines `groupId`, `artifactId` and `version`, then you can skip these here
             groupId = "org.gradle.sample"
             artifactId = "prova"
             version = "0.1"
@@ -66,8 +67,9 @@ publishing {
     // don't use `repositories.github(..)`, it won't work
     // the dsl construct is necessary to distinguish it from a consume-only repo
     repositories {
+        // don't use github(domain: String), that's for fetching, it won't work for publishing
         github {
-            // this is superfluous since `github` is the default value, but it determines 
+            // this is optional since `github` is the default value, but it determines 
             // the token name to fetch and the consequent publishing task name 
             // eg: publishMavenPublicationToGithubRepository
             name = "github" 
@@ -94,6 +96,12 @@ repositories {
     github("kotlin-graphics", "mary")
 }
 ```
+
+##### Publishing
+
+Run `publish(Maven)PublicationTo(Github)Repository` or `publishAllPublicationsTo(Github)Repository`
+
+where `Maven` is the publication name (capitalized) and `Github` the repository name (capitalized)
 
 ### Settings
 
