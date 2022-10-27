@@ -40,7 +40,7 @@ dependencies {
 }
 
 group = "com.github.elect86"
-version = "0.2.8"
+version = "0.2.9"
 
 publishing {
     publications.create<MavenPublication>("maven") {
