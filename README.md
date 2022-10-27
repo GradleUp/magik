@@ -20,7 +20,7 @@ Welcome [Magik](https://plugins.gradle.org/plugin/elect86.magik) (MAven reposito
 
 ```
 plugins {
-  id("elect86.magik") version "0.2.4"
+  id("elect86.magik") version "0.2.7"
 }
 ```
 
@@ -66,6 +66,7 @@ publishing {
     // don't use `repositories.github(..)`, it won't work
     // the dsl construct is necessary to distinguish it from a consume-only repo
     repositories {
+        // don't use github(domain: String), that's for fetching, it won't work for publishing
         github {
             // this is superfluous since `github` is the default value, but it determines 
             // the token name to fetch and the consequent publishing task name 
@@ -94,6 +95,12 @@ repositories {
     github("kotlin-graphics", "mary")
 }
 ```
+
+##### Publishing
+
+Run `publish(Maven)PublicationTo(Github)Repository` or `publishAllPublicationsTo(Github)Repository`
+
+where `Maven` is the publication name (capitalized) and `Github` the repository name (capitalized)
 
 ### Settings
 
