@@ -8,7 +8,7 @@ plugins {
 
     `kotlin-dsl`
 
-    id("com.gradle.plugin-publish") version "1.0.0-rc-1"
+    id("com.gradle.plugin-publish") version "1.0.0"
 
     `maven-publish`
 }
@@ -40,7 +40,7 @@ dependencies {
 }
 
 group = "com.github.elect86"
-version = "0.3.0"
+version = "0.3.1"
 
 publishing {
     publications.create<MavenPublication>("maven") {

@@ -29,40 +29,13 @@ import java.util.*
 
 
 abstract class MagikExtension {
-
-    @get:Input
     abstract val commitWithChanges: Property<Boolean>
-
-    @get:Input
     abstract val defaultCommitWithChanges: Property<Boolean>
-
-    @get:Input
     abstract val gitOnPath: Property<Boolean>
-
-    @get:Input
     abstract val dryRun: Property<Boolean>
-
-    @get:Input
     abstract val verbose: Property<Boolean>
-
-    @get:Input
     abstract val defaultSnapshotNamePostfix: Property<String>
-
-    @get:Input
     abstract val defaultSnapshotVersionPostfix: Property<(gitDistance: Int) -> String>
-
-    init {
-        commitWithChanges.convention(false)
-        defaultCommitWithChanges.convention(false)
-        gitOnPath.convention(configuringProject.exec {
-            commandLine("git", "--version")
-            standardOutput = ByteArrayOutputStream() // disable output with a dummy instance
-        }.exitValue == 0)
-        dryRun.convention(false)
-        verbose.convention(false)
-        defaultSnapshotNamePostfix.convention("Snapshot")
-        defaultSnapshotVersionPostfix.convention { "+$it" }
-    }
 }
 
 //abstract class GithubContainer : BuildService<GithubContainer.Params>, AutoCloseable {
@@ -100,6 +73,15 @@ class MagikPlugin : Plugin<Project> {
         // Add the 'greeting' extension object
         val setting = project.extensions.create<MagikExtension>("magik").apply {
             commitWithChanges.convention(false)
+            defaultCommitWithChanges.convention(false)
+            gitOnPath.convention(configuringProject.exec {
+                commandLine("git", "--version")
+                standardOutput = ByteArrayOutputStream() // disable output with a dummy instance
+            }.exitValue == 0)
+            dryRun.convention(false)
+            verbose.convention(false)
+            defaultSnapshotNamePostfix.convention("Snapshot")
+            defaultSnapshotVersionPostfix.convention { "+$it" }
         }
 
         project.tasks.configureEach {
@@ -312,7 +294,7 @@ fun RepositoryHandler.githubPackages(domain: String) {
         // The url of the repository that contains the published artifacts
         url = URI("https://maven.pkg.github.com/$domain")
         credentials {
-            fun file(branch: String = "master")= "https://raw.githubusercontent.com/$domain/$branch/credentials1"
+            fun file(branch: String = "master")= "https://raw.githubusercontent.com/$domain/$branch/credentials"
             val (name, pwd) = try {
                 URL(file()).readText()
             } catch (ex: FileNotFoundException) {
