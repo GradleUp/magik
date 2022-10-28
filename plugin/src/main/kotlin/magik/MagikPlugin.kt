@@ -3,7 +3,6 @@ package magik
 import org.gradle.api.Action
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.Task
 import org.gradle.api.artifacts.dsl.RepositoryHandler
 import org.gradle.api.artifacts.repositories.ArtifactRepository
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository
@@ -16,14 +15,16 @@ import org.gradle.api.tasks.Input
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.getByName
 import org.gradle.kotlin.dsl.maven
-import org.gradle.kotlin.dsl.register
 import org.http4k.client.Java8HttpClient
 import org.http4k.core.*
 import org.http4k.core.Method.*
 import java.io.BufferedReader
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileNotFoundException
 import java.io.InputStreamReader
+import java.net.URI
+import java.net.URL
 import java.util.*
 
 
@@ -87,17 +88,19 @@ lateinit var configuringProject: Project
 class MagikPlugin : Plugin<Project> {
 
     override fun apply(project: Project) {
-        project.tasks.register("greeting") {
-            doLast {
-                println("Hello from plugin 'terraform.kt.greeting'")
-            }
-        }
+//        project.tasks.register("greeting") {
+//            doLast {
+//                println("Hello from plugin 'terraform.kt.greeting'")
+//            }
+//        }
 //        println("apply($project)")
 
         configuringProject = project
 
         // Add the 'greeting' extension object
-        val setting = project.extensions.create<MagikExtension>("magik")
+        val setting = project.extensions.create<MagikExtension>("magik").apply {
+            commitWithChanges.convention(false)
+        }
 
         project.tasks.configureEach {
 
@@ -303,6 +306,24 @@ fun RepositoryHandler.github(action: Action<GithubArtifactRepository>) {
     }
 }
 
+fun RepositoryHandler.githubPackages(owner: String, repo: String) = githubPackages("https://raw.githubusercontent.com/$owner/$repo/master")
+fun RepositoryHandler.githubPackages(domain: String) {
+    maven {
+        // The url of the repository that contains the published artifacts
+        url = URI("https://maven.pkg.github.com/$domain")
+        credentials {
+            fun file(branch: String = "master")= "https://raw.githubusercontent.com/$domain/$branch/credentials1"
+            val (name, pwd) = try {
+                URL(file()).readText()
+            } catch (ex: FileNotFoundException) {
+                URL(file("main")).readText()
+            }.lines()
+            username = name
+            password = "ghp_$pwd"
+        }
+    }
+}
+
 class GithubArtifactRepository(val project: Project) : ArtifactRepository {
 
     private var n = "github"
@@ -354,3 +375,5 @@ fun MavenPublication.addSnapshotPublication(block: GithubSnapshotPublication.() 
     val version = "$version+${setting.defaultSnapshotVersionPostfix.get()(gitDistance)}"
     currentSnapshot = GithubSnapshotPublication(name, version).apply(block)
 }
+
+

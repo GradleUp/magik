@@ -29,6 +29,12 @@ plugins {
 
 ### How to use
 
+You have two options (!). Too many, I know, sorry. You can use:
+1) a Github repository acting as a pure Maven repository
+2) Github Packages without the authentication hassle, even for just consuming dependencies
+
+### Method 1, Github repository as Maven repository
+
 ##### Authentication
 
 You should first be sure to be able to connect to [GitHub using ssh](https://docs.github.com/en/github/authenticating-to-github/connecting-to-github-with-ssh).
@@ -133,9 +139,55 @@ magik {
 }
 ```
 
+### Method 2, clients consuming Github Packages without having to set up authentication
 
-### Github known limitations
+Create a token with the `read:packages` scope and add a `credentials` file in the root of your repository (branch `master`/`main`) hosting 
+the packages with your nickname on the first line, and the token you just created on the second line (without the 
+prefix `ghp_`, otherwise Github will detect the token code in the next commit and delete the corresponding token)
 
-- every repository has an hard limit of 100 GB for its total size
-- every file has an hard limit of 100 MB for its size
+Example, mary's [`credentials`](https://github.com/kotlin-graphics/mary/blob/master/credentials)
 
+```
+elect86
+7V1YljEcKShzwPzPJuAPP0X55urEhF0RBWG2
+```
+
+##### Fetching
+
+```kotlin
+repositories {
+    githubPackages("kotlin-graphics/mary")
+}
+```
+
+### Advantages and limitations
+
+Big advantage for both: they rely on the Github infrastructure (aka bandwidth and reliability)
+
+##### Method 1, advantages:
+- pure Maven repository
+- works with every client, Maven or Gradle 
+- no need to expose a (read) token on the internet
+- no need to have a `credentials` file in your root repository
+
+Disadvantages:
+- git is suboptimal for storing (large) binaries, it's fine for plain ones, but fat jars may represent a problem in the long run
+- every repository has a hard limit of 100 GB for its total size
+- every file has a hard limit of 100 MB for its size
+
+##### Method 2
+
+Advantages:
+- is optimal for every kind of binaries, also fat jars
+
+[Disadvantages](https://medium.com/swlh/devops-with-github-part-1-github-packages-with-gradle-c4253cdf7ca6):
+- Snapshots do not work
+  - Even though the docs state that snapshots are supported, we couldn’t get them to work. The first few builds work just fine; however, old snapshots are not being removed. Instead, new artifacts are constantly being added to that same release, which eventually stops working. From this point on, you will always fetch old snapshots.
+- Multiple artifacts per release do not work
+  - As soon as you try to upload JavaDoc and source artifacts in addition to the library itself, the repository enters an unstable state. Even loading existing artifacts or publishing new library versions will fail with a 400 error. In our case, only deleting the artifact or repository could fix this. 
+- Public versions cannot be deleted
+  - While it’s possible to delete artifact versions in private repositories, GitHub doesn’t allow you to do this in public repositories. Therefore, you should carefully consider what to publish and what to keep private ;)
+- The token needs the correct scopes
+  - The personal access token used to access the artifacts must have precisely the scopes listed above for everything to work. If any of these scopes is missing, you will receive error messages that often do not indicate the lack of permission!
+- Dynamic versions will prevent publishing
+  - If you are using Spring Boot, and have dynamic versions enabled, the publishing will fail because the versions are not locked. While this is not directly related to GitHub packages, it is still good to be aware of. To fix this, you need to adjust the build.gradle file, so that there is a version mapping in the publishing block:
