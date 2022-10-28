@@ -20,7 +20,7 @@ Welcome [Magik](https://plugins.gradle.org/plugin/elect86.magik) (MAven reposito
 
 ```
 plugins {
-  id("elect86.magik") version "0.2.9"
+  id("elect86.magik") version "0.3.0"
 }
 ```
 
