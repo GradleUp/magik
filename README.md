@@ -166,21 +166,19 @@ Big advantage for both: they rely on the Github infrastructure (aka bandwidth an
 
 ##### Method 1, advantages:
 - pure Maven repository
-- works with every client, Maven or Gradle 
+- works with every client, Maven or Gradle or whatever
 - no need to expose a (read) token on the internet
 - no need to have a `credentials` file in your root repository
 
-Disadvantages:
-- git is suboptimal for storing (large) binaries, it's fine for plain ones, but fat jars may represent a problem in the long run
+##### Disadvantages:
+- git is suboptimal for storing (large) binaries, it's fine for regular ones, but fat jars may represent a problem in the long run
 - every repository has a hard limit of 100 GB for its total size
 - every file has a hard limit of 100 MB for its size
 
-##### Method 2
-
-Advantages:
+##### Method 2, advantages:
 - is optimal for every kind of binaries, also fat jars
 
-[Disadvantages](https://medium.com/swlh/devops-with-github-part-1-github-packages-with-gradle-c4253cdf7ca6):
+##### [Disadvantages](https://medium.com/swlh/devops-with-github-part-1-github-packages-with-gradle-c4253cdf7ca6):
 - Snapshots do not work
   - Even though the docs state that snapshots are supported, we couldn’t get them to work. The first few builds work just fine; however, old snapshots are not being removed. Instead, new artifacts are constantly being added to that same release, which eventually stops working. From this point on, you will always fetch old snapshots.
 - Multiple artifacts per release do not work
