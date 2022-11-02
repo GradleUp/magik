@@ -149,7 +149,9 @@ magik {
 
 Since this is a `Project` plugin (which applies to `build.gradle.kts`), there is no support for `settings.gradle.kts`.
 So, in case you prefer to apply the repositories once in the settings, just fallback to:
+
 `"https://raw.githubusercontent.com/$organization/$repo/$branch"`
+
 For example, `settings.gradle.kts`:
 ```
 dependencyResolutionManagement {
