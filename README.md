@@ -145,6 +145,21 @@ magik {
 }
 ```
 
+#### Setting the repository in `settings.gradle.kts` for all the modules in a multi-module project
+
+Since this is a `Project` plugin (which applies to `build.gradle.kts`), there is no support for `settings.gradle.kts`.
+So, in case you prefer to apply the repositories once in the settings, just fallback to:
+`"https://raw.githubusercontent.com/$organization/$repo/$branch"`
+For example, `settings.gradle.kts`:
+```
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+        maven("https://raw.githubusercontent.com/kotlin-graphics/mary/master")
+    }
+}
+```
+
 ### Method 2, clients consuming Github Packages without having to set up authentication
 
 Create a token with the `read:packages` scope and add a `credentials` file in the root of your repository (branch `master`/`main`) hosting 
