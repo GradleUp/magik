@@ -109,6 +109,12 @@ Run `publish(Maven)PublicationTo(Github)Repository` or `publishAllPublicationsTo
 
 where `Maven` is the publication name (capitalized) and `Github` the repository name (capitalized)
 
+> &gt; Task :publishMavenPublicationToGithubRepository
+>
+> kotlin.graphics:gli:0.8.3.0-18 published on kotlin-graphics/mary!
+
+The printed GAV coordinates can then be easily copied and pasted where needed :)
+
 ### Settings
 
 Sometimes it happens you forget to commit before publishing. In order to avoid these situations, 
