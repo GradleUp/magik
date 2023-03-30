@@ -109,6 +109,12 @@ Run `publish(Maven)PublicationTo(Github)Repository` or `publishAllPublicationsTo
 
 where `Maven` is the publication name (capitalized) and `Github` the repository name (capitalized)
 
+> &gt; Task :publishMavenPublicationToGithubRepository
+>
+> kotlin.graphics:gli:0.8.3.0-18 published on kotlin-graphics/mary!
+
+The printed GAV coordinates can then be easily copied and pasted where needed :)
+
 ### Settings
 
 Sometimes it happens you forget to commit before publishing. In order to avoid these situations, 
@@ -139,6 +145,23 @@ magik {
 }
 ```
 
+#### Setting the repository in `settings.gradle.kts` for all the modules in a multi-module project
+
+Since this is a `Project` plugin (which applies to `build.gradle.kts`), there is no support for `settings.gradle.kts`.
+So, in case you prefer to apply the repositories once in the settings, just fallback to:
+
+`"https://raw.githubusercontent.com/$organization/$repo/$branch"`
+
+For example, `settings.gradle.kts`:
+```
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+        maven("https://raw.githubusercontent.com/kotlin-graphics/mary/master")
+    }
+}
+```
+
 ### Method 2, clients consuming Github Packages without having to set up authentication
 
 Create a token with the `read:packages` scope and add a `credentials` file in the root of your repository (branch `master`/`main`) hosting 
@@ -166,21 +189,19 @@ Big advantage for both: they rely on the Github infrastructure (aka bandwidth an
 
 ##### Method 1, advantages:
 - pure Maven repository
-- works with every client, Maven or Gradle 
+- works with every client, Maven or Gradle or whatever
 - no need to expose a (read) token on the internet
 - no need to have a `credentials` file in your root repository
 
-Disadvantages:
-- git is suboptimal for storing (large) binaries, it's fine for plain ones, but fat jars may represent a problem in the long run
+##### Disadvantages:
+- git is suboptimal for storing (large) binaries, it's fine for regular ones, but fat jars may represent a problem in the long run
 - every repository has a hard limit of 100 GB for its total size
 - every file has a hard limit of 100 MB for its size
 
-##### Method 2
-
-Advantages:
+##### Method 2, advantages:
 - is optimal for every kind of binaries, also fat jars
 
-[Disadvantages](https://medium.com/swlh/devops-with-github-part-1-github-packages-with-gradle-c4253cdf7ca6):
+##### [Disadvantages](https://medium.com/swlh/devops-with-github-part-1-github-packages-with-gradle-c4253cdf7ca6):
 - Snapshots do not work
   - Even though the docs state that snapshots are supported, we couldn’t get them to work. The first few builds work just fine; however, old snapshots are not being removed. Instead, new artifacts are constantly being added to that same release, which eventually stops working. From this point on, you will always fetch old snapshots.
 - Multiple artifacts per release do not work
