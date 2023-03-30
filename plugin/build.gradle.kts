@@ -1,4 +1,3 @@
-
 plugins {
     // Apply the Java Gradle plugin development plugin to add support for developing Gradle plugins
     `java-gradle-plugin`
@@ -8,7 +7,7 @@ plugins {
 
     `kotlin-dsl`
 
-    id("com.gradle.plugin-publish") version "1.0.0"
+    id("com.gradle.plugin-publish") version "1.1.0"
 
     `maven-publish`
 }
@@ -31,16 +30,16 @@ dependencies {
     // Use the Kotlin JUnit integration.
     testImplementation(kotlin("test-junit"))
 
-    implementation(platform("org.http4k:http4k-bom:4.33.1.0"))
+    implementation(platform("org.http4k:http4k-bom:4.41.1.1"))
     implementation("org.http4k:http4k-core")
     implementation("org.http4k:http4k-server-netty")
     implementation("org.http4k:http4k-client-apache")
 
-    implementation("com.google.code.gson:gson:2.10")
+    implementation("com.google.code.gson:gson:2.10.1")
 }
 
 group = "com.github.elect86"
-version = "0.3.1"
+version = "0.3.2"
 
 publishing {
     publications.create<MavenPublication>("maven") {
@@ -49,25 +48,21 @@ publishing {
 }
 
 gradlePlugin {
+    website.set("https://github.com/elect86/magik")
+    vcsUrl.set("https://github.com/elect86/magik")
     // Define the plugin
     plugins.create("magik") {
         id = "elect86.magik"
-        displayName = "easier developers' life publishing on Github"
-        description = "publish directly on your Github repository acting as a Maven repository or use Github Packages without hassle"
         implementationClass = "magik.MagikPlugin"
+        displayName = "easier developers' life publishing on Github"
+        description =
+            "publish directly on your Github repository acting as a Maven repository or use Github Packages without hassle"
+        tags.set(listOf("github", "repository", "maven", "kotlin", "publish", "publishing"))
     }
 }
 
-pluginBundle {
-    website = "https://github.com/elect86/magik"
-    vcsUrl = "https://github.com/elect86/magik"
-    tags = listOf("github", "repository", "maven", "kotlin", "publish", "publishing")
-}
-
-kotlin{
-    jvmToolchain {
-        (this as JavaToolchainSpec).languageVersion.set(JavaLanguageVersion.of(8))
-    }
+kotlin.jvmToolchain {
+    languageVersion.set(JavaLanguageVersion.of(8))
 }
 
 // Add a source set for the functional test suite
