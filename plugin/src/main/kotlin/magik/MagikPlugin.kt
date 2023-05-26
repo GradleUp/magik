@@ -11,18 +11,14 @@ import org.gradle.api.provider.Property
 import org.gradle.api.publish.PublicationContainer
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
-import org.gradle.api.tasks.Input
+import org.gradle.configurationcache.extensions.capitalized
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.getByName
 import org.gradle.kotlin.dsl.maven
 import org.http4k.client.Java8HttpClient
 import org.http4k.core.*
 import org.http4k.core.Method.*
-import java.io.BufferedReader
-import java.io.ByteArrayOutputStream
-import java.io.File
-import java.io.FileNotFoundException
-import java.io.InputStreamReader
+import java.io.*
 import java.net.URI
 import java.net.URL
 import java.util.*
@@ -88,7 +84,7 @@ class MagikPlugin : Plugin<Project> {
 
             val gh = githubs.find { it.project == project } ?: return@configureEach
             //            if (setting.verbose.get()) println(gh.project)
-            val ghName = gh.name.capitalize()
+            val ghName = gh.name.capitalized()
             val postFix = "PublicationTo${ghName}Repository"
 
             val found = name.startsWith("publish") && name.endsWith(postFix)
