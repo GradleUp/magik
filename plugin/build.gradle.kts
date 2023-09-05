@@ -30,7 +30,7 @@ dependencies {
     // Use the Kotlin JUnit integration.
     testImplementation(kotlin("test-junit"))
 
-    implementation(platform("org.http4k:http4k-bom:4.41.1.1"))
+    implementation(platform("org.http4k:http4k-bom:5.7.5.0"))
     implementation("org.http4k:http4k-core")
     implementation("org.http4k:http4k-server-netty")
     implementation("org.http4k:http4k-client-apache")
@@ -39,7 +39,7 @@ dependencies {
 }
 
 group = "com.github.elect86"
-version = "0.3.2"
+version = "0.3.3"
 
 publishing {
     publications.create<MavenPublication>("maven") {
@@ -55,8 +55,7 @@ gradlePlugin {
         id = "elect86.magik"
         implementationClass = "magik.MagikPlugin"
         displayName = "easier developers' life publishing on Github"
-        description =
-            "publish directly on your Github repository acting as a Maven repository or use Github Packages without hassle"
+        description = "publish directly on your Github repository acting as a Maven repository or use Github Packages without hassle"
         tags.set(listOf("github", "repository", "maven", "kotlin", "publish", "publishing"))
     }
 }
