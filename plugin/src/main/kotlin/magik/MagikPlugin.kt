@@ -15,6 +15,9 @@ import org.gradle.configurationcache.extensions.capitalized
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.getByName
 import org.gradle.kotlin.dsl.maven
+import org.gradle.kotlin.dsl.register
+import org.gradle.kotlin.dsl.support.delegates.ProjectDelegate
+import org.gradle.launcher.daemon.protocol.Build
 import org.http4k.client.Java8HttpClient
 import org.http4k.core.*
 import org.http4k.core.Method.*
@@ -34,19 +37,6 @@ abstract class MagikExtension {
     abstract val defaultSnapshotVersionPostfix: Property<(gitDistance: Int) -> String>
 }
 
-//abstract class GithubContainer : BuildService<GithubContainer.Params>, AutoCloseable {
-//
-//    internal interface Params : BuildServiceParameters {
-//        val repositories: Property<ArrayList<GithubArtifactRepository>>
-//    }
-//
-//    init {
-//        parameters.repositories.set(ObjectFactory.listProperty())
-//    }
-//}
-
-//lateinit var githubContainer: Provider<GithubContainer>
-
 // reference in order to loop and detect automatically the publishing task to append logic to
 val githubs = ArrayList<GithubArtifactRepository>()
 
@@ -57,12 +47,14 @@ lateinit var configuringProject: Project
 class MagikPlugin : Plugin<Project> {
 
     override fun apply(project: Project) {
-//        project.tasks.register("greeting") {
-//            doLast {
-//                println("Hello from plugin 'terraform.kt.greeting'")
-//            }
-//        }
-//        println("apply($project)")
+        //        project.tasks.register("greeting") {
+        //            doLast {
+        //                println("Hello from plugin 'terraform.kt.greeting'")
+        //            }
+        //        }
+        println("apply(project: $project)")
+
+        project.pluginManager.apply("maven-publish")
 
         configuringProject = project
 
@@ -80,17 +72,17 @@ class MagikPlugin : Plugin<Project> {
             defaultSnapshotVersionPostfix.convention { "+$it" }
         }
 
-        project.tasks.configureEach {
+        for (task in project.tasks) {
 
-            val gh = githubs.find { it.project == project } ?: return@configureEach
+            val name = task.name
+            val gh = githubs.find { it.project == project } ?: continue
             //            if (setting.verbose.get()) println(gh.project)
             val ghName = gh.name.capitalized()
             val postFix = "PublicationTo${ghName}Repository"
 
             val found = name.startsWith("publish") && name.endsWith(postFix)
 
-            if (!found)
-                return@configureEach
+            if (!found) continue
 
             fun verbose(text: Any) {
                 if (setting.verbose.get()) println(text)
@@ -135,7 +127,8 @@ class MagikPlugin : Plugin<Project> {
             }
 
             var proceed = true
-            doFirst {
+            task.doFirst {
+                println("$task doFirst")
                 // check against git uncommitted changes
                 if (!setting.gitOnPath.get() || setting.commitWithChanges.get())
                     return@doFirst
@@ -181,7 +174,8 @@ class MagikPlugin : Plugin<Project> {
                 }
             }
 
-            doLast {
+            task.doLast {
+                println("$task doLast")
                 if (!proceed)
                     return@doLast
                 //                                        println(project.displayName)
@@ -290,7 +284,7 @@ fun RepositoryHandler.githubPackages(domain: String) {
         // The url of the repository that contains the published artifacts
         url = URI("https://maven.pkg.github.com/$domain")
         credentials {
-            fun file(branch: String = "master")= "https://raw.githubusercontent.com/$domain/$branch/credentials"
+            fun file(branch: String = "master") = "https://raw.githubusercontent.com/$domain/$branch/credentials"
             val (name, pwd) = try {
                 URL(file()).readText()
             } catch (ex: FileNotFoundException) {
@@ -302,22 +296,10 @@ fun RepositoryHandler.githubPackages(domain: String) {
     }
 }
 
-class GithubArtifactRepository(val project: Project) : ArtifactRepository {
-
-    private var n = "github"
-
+class GithubArtifactRepository(val project: Project) {
+    var name = "github"
     lateinit var domain: String
-
-    internal val repo: String
-        get() = domain.substringAfter('/')
-
-    override fun getName(): String = n
-
-    override fun setName(name: String) {
-        n = name
-    }
-
-    override fun content(configureAction: Action<in RepositoryContentDescriptor>) = TODO("Not yet implemented")
+    internal val repo: String by lazy { domain.substringAfter('/') }
 }
 
 val gitDescribe: String
@@ -330,12 +312,12 @@ val gitDistance: Int
         -1
     }
 
-fun PublicationContainer.createGithubPublication(name: String = "maven",
-                                                 action: Action<MavenPublication>) {
+fun PublicationContainer.registerGithubPublication(name: String = "maven",
+                                                   action: Action<MavenPublication>) {
     currentSnapshot = null
-    action.execute(create<MavenPublication>(name))
+    action.execute(register<MavenPublication>(name).get())
     currentSnapshot?.let {
-        create<MavenPublication>(it.name).version = it.version
+        register<MavenPublication>(it.name).get().version = it.version
         currentSnapshot = null
     }
 }

@@ -9,3 +9,4 @@
 
 rootProject.name = "magik"
 include("plugin")
+includeBuild("../http4k-connect")
