@@ -1,5 +1,7 @@
 package magik
 
+import dev.forkhandles.result4k.get
+import dev.forkhandles.result4k.valueOrNull
 import org.gradle.api.Action
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -16,8 +18,6 @@ import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.getByName
 import org.gradle.kotlin.dsl.maven
 import org.gradle.kotlin.dsl.register
-import org.gradle.kotlin.dsl.support.delegates.ProjectDelegate
-import org.gradle.launcher.daemon.protocol.Build
 import org.http4k.client.Java8HttpClient
 import org.http4k.core.*
 import org.http4k.core.Method.*
@@ -54,7 +54,7 @@ class MagikPlugin : Plugin<Project> {
         //        }
         println("apply(project: $project)")
 
-        project.pluginManager.apply("maven-publish")
+        //        project.pluginManager.apply("maven-publish")
 
         configuringProject = project
 
@@ -72,17 +72,17 @@ class MagikPlugin : Plugin<Project> {
             defaultSnapshotVersionPostfix.convention { "+$it" }
         }
 
-        for (task in project.tasks) {
+        project.tasks.configureEach {
 
-            val name = task.name
-            val gh = githubs.find { it.project == project } ?: continue
+            val gh = githubs.find { it.project == project } ?: return@configureEach
+//            val repo = GitHubRepo(gh.domain)
             //            if (setting.verbose.get()) println(gh.project)
             val ghName = gh.name.capitalized()
             val postFix = "PublicationTo${ghName}Repository"
 
             val found = name.startsWith("publish") && name.endsWith(postFix)
 
-            if (!found) continue
+            if (!found) return@configureEach
 
             fun verbose(text: Any) {
                 if (setting.verbose.get()) println(text)
@@ -98,8 +98,8 @@ class MagikPlugin : Plugin<Project> {
             } as MavenPublication
 
             // delete first any previously local publication
+            verbose("deleting first any previous local publication at ${repo.url}")
             File(repo.url).deleteRecursively()
-            verbose("delete first any previously local publication at ${repo.url}")
 
             operator fun Method.invoke(relativeUri: String, debugRequest: Boolean = false,
                                        debugResponse: Boolean = false, is404fine: Boolean = false,
@@ -127,15 +127,16 @@ class MagikPlugin : Plugin<Project> {
             }
 
             var proceed = true
-            task.doFirst {
-                println("$task doFirst")
+            doFirst {
                 // check against git uncommitted changes
                 if (!setting.gitOnPath.get() || setting.commitWithChanges.get())
                     return@doFirst
-                val status = project.exec("git status")
-                val changesToBeCommitted = "Changes to be committed"
-                val changesNotStagedForCommit = "Changes not staged for commit"
-                if (changesToBeCommitted in status || changesNotStagedForCommit in status) {
+                val status = try {
+                    project.exec("git status")
+                } catch (e: Exception) {
+                    ""
+                }
+                if ("Changes to be committed" in status || "Changes not staged for commit" in status) {
                     println(status)
                     tailrec fun proceed(): Boolean {
                         val options = if (setting.defaultCommitWithChanges.get()) "[Y]/N" else "Y/[N]"
@@ -149,33 +150,34 @@ class MagikPlugin : Plugin<Project> {
                         }
                     }
                     proceed = proceed()
-                    println(when {
-                                proceed -> "..continuing the publication with uncommited local changes.."
-                                else -> "aborting, please commit or revert your local changes before proceeding publishing"
-                            })
+                    if (proceed) println("..continuing the publication with uncommited local changes..")
+                    else println("aborting, please commit or revert your local changes before proceeding publishing")
                 }
                 if (proceed) {
-                    // download maven-metadata.xml to avoid overwrites and keep track of previous releases/snapshots
-                    val gas = publ.groupId.split('.') + publ.artifactId
-                    val ga = gas.joinToString(File.separator)
-                    val request = Request(GET, "https://raw.githubusercontent.com/${gh.domain}/master/$ga/maven-metadata.xml")
-                        .header("Accept", "application/vnd.github.v3+json")
-                        .header("Authorization", "token ${project.property("${gh.name}Token")!!}")
-                    val response = Java8HttpClient()(request)
-                    // file doesn't exist or is the first publishing ever
-                    if (response.status != Status.NOT_FOUND && response.status != Status.MOVED_PERMANENTLY)
+                    // download maven-metadata.xml, if exists, to avoid overwrites the remote one and keep track of previous releases/snapshots
+                    // ga = org/gradle/sample/prova
+                    val ga = publ.groupId.replace('.', '/') + '/' + publ.artifactId
+//                    val request = Request(GET, "https://raw.githubusercontent.com/${gh.domain}/master/$ga/maven-metadata.xml")
+//                        .header("Accept", "application/vnd.github.v3+json")
+//                        .header("Authorization", "token ${project.property("${gh.name}Token")!!}")
+//                    val response = Java8HttpClient()(request)
+//                    if (response.status != Status.NOT_FOUND && response.status != Status.MOVED_PERMANENTLY)
+                    // file does exist and it's not the first publication ever
+                    gh.getFile("$ga/maven-metadata.xml").valueOrNull()?.let { meta ->
                         File(repo.url).resolve(ga).run {
                             mkdirs()
                             resolve("maven-metadata.xml")
                         }.apply {
                             createNewFile()
-                            writeText(response.bodyString())
+                            writeText(meta.rawContent)
+                            verbose("meta.rawContent ${meta.rawContent}")
                         }
+                    }
                 }
             }
 
-            task.doLast {
-                println("$task doLast")
+            doLast {
+                return@doLast
                 if (!proceed)
                     return@doLast
                 //                                        println(project.displayName)
@@ -268,9 +270,9 @@ fun RepositoryHandler.github(domain: String) = maven("https://raw.githubusercont
 fun RepositoryHandler.github(owner: String, repo: String) = maven("https://raw.githubusercontent.com/$owner/$repo/master")
 
 /** publishing/repositories scope */
-fun RepositoryHandler.github(action: Action<GithubArtifactRepository>) {
-    val gh = GithubArtifactRepository(configuringProject)
-    action.execute(gh)
+fun RepositoryHandler.github(action: Action<GithubArtifactRepositoryBuilder>) {
+    val builder = GithubArtifactRepositoryBuilder().also(action::execute)
+    val gh = GithubArtifactRepository(configuringProject, builder.name, builder.domain)
     githubs += gh
     maven {
         name = gh.name
@@ -296,9 +298,14 @@ fun RepositoryHandler.githubPackages(domain: String) {
     }
 }
 
-class GithubArtifactRepository(val project: Project) {
+class GithubArtifactRepositoryBuilder {
     var name = "github"
     lateinit var domain: String
+}
+class GithubArtifactRepository(val project: Project,
+                               val name: String,
+                               domain: String,
+                               branch: String = "master"): GitHubRepo(domain, branch) {
     internal val repo: String by lazy { domain.substringAfter('/') }
 }
 
@@ -312,8 +319,8 @@ val gitDistance: Int
         -1
     }
 
-fun PublicationContainer.registerGithubPublication(name: String = "maven",
-                                                   action: Action<MavenPublication>) {
+fun PublicationContainer.createGithubPublication(name: String = "maven",
+                                                 action: Action<MavenPublication>) {
     currentSnapshot = null
     action.execute(register<MavenPublication>(name).get())
     currentSnapshot?.let {

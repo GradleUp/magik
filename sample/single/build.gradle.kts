@@ -1,9 +1,10 @@
-import magik.registerGithubPublication
+import magik.createGithubPublication
 import magik.github
 
 plugins {
     embeddedKotlin("jvm")
     id("elect86.magik")
+    `maven-publish`
 }
 
 group = "org.example"
@@ -19,15 +20,15 @@ tasks.test { useJUnitPlatform() }
 
 kotlin.jvmToolchain(17)
 
-//registerGithubPublication {
-//
-//}
+magik {
+    verbose = true
+}
 
 publishing {
     publications {
         // you can pass a name to overwrite the default "maven"
         // createGithubPublication("my-name")
-        registerGithubPublication {
+        createGithubPublication {
             // if your project already defines `groupId`, `artifactId` and `version`, then you can skip these here
             groupId = "org.gradle.sample"
             artifactId = "prova"
@@ -44,10 +45,10 @@ publishing {
             // this is optional since `github` is the default value, but it determines
             // the token name to fetch and the consequent publishing task name
             // eg: publishMavenPublicationToGithubRepository
-            name = "github"
+//            name = "github"
 
             // this is mandatory instead: $owner/$repo on github domain
-            domain = "kotlin-graphics/mary" // aka https://github.com/kotlin-graphics/mary
+            domain = "elect86/fuzzy-octo-disco" // aka https://github.com/elect86/fuzzy-octo-disco
         }
     }
 }

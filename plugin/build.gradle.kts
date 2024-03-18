@@ -28,11 +28,11 @@ dependencies {
 
     implementation(platform("org.http4k:http4k-bom:5.14.0.0"))
     implementation("org.http4k:http4k-core")
-    implementation("org.http4k:http4k-server-netty")
+    implementation("org.http4k:http4k-server-undertow")
     implementation("org.http4k:http4k-client-apache")
     implementation("org.http4k:http4k-connect")
     implementation("org.http4k:http4k-connect-github")
-    implementation("org.http4k:http4k-format-jackson")
+    implementation("org.http4k:http4k-format-moshi")
 
     implementation("com.google.code.gson:gson:2.10.1")
 }
@@ -59,13 +59,13 @@ gradlePlugin {
     }
 }
 
-kotlin.jvmToolchain {
+kotlin.jvmToolchain(11)/* {
     languageVersion.set(JavaLanguageVersion.of(8))
-}
+}*/
 
-tasks.withType<JavaCompile>().configureEach {
-    options.release = 8
-}
+//tasks.withType<JavaCompile>().configureEach {
+//    options.release = 11
+//}
 
 // Add a source set for the functional test suite
 val functionalTestSourceSet = sourceSets.create("functionalTest") {}
