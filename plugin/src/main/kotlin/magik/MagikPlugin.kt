@@ -1,14 +1,12 @@
 package magik
 
-import dev.forkhandles.result4k.get
+import dev.forkhandles.result4k.map
 import dev.forkhandles.result4k.valueOrNull
 import org.gradle.api.Action
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.dsl.RepositoryHandler
-import org.gradle.api.artifacts.repositories.ArtifactRepository
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository
-import org.gradle.api.artifacts.repositories.RepositoryContentDescriptor
 import org.gradle.api.provider.Property
 import org.gradle.api.publish.PublicationContainer
 import org.gradle.api.publish.PublishingExtension
@@ -75,7 +73,7 @@ class MagikPlugin : Plugin<Project> {
         project.tasks.configureEach {
 
             val gh = githubs.find { it.project == project } ?: return@configureEach
-//            val repo = GitHubRepo(gh.domain)
+            //            val repo = GitHubRepo(gh.domain)
             //            if (setting.verbose.get()) println(gh.project)
             val ghName = gh.name.capitalized()
             val postFix = "PublicationTo${ghName}Repository"
@@ -156,41 +154,44 @@ class MagikPlugin : Plugin<Project> {
                 if (proceed) {
                     // download maven-metadata.xml, if exists, to avoid overwrites the remote one and keep track of previous releases/snapshots
                     // ga = org/gradle/sample/prova
-                    val ga = publ.groupId.replace('.', '/') + '/' + publ.artifactId
-//                    val request = Request(GET, "https://raw.githubusercontent.com/${gh.domain}/master/$ga/maven-metadata.xml")
-//                        .header("Accept", "application/vnd.github.v3+json")
-//                        .header("Authorization", "token ${project.property("${gh.name}Token")!!}")
-//                    val response = Java8HttpClient()(request)
-//                    if (response.status != Status.NOT_FOUND && response.status != Status.MOVED_PERMANENTLY)
+                    val pathGA = publ.groupId.replace('.', '/') + '/' + publ.artifactId
+                    //                    val request = Request(GET, "https://raw.githubusercontent.com/${gh.domain}/master/$ga/maven-metadata.xml")
+                    //                        .header("Accept", "application/vnd.github.v3+json")
+                    //                        .header("Authorization", "token ${project.property("${gh.name}Token")!!}")
+                    //                    val response = Java8HttpClient()(request)
+                    //                    if (response.status != Status.NOT_FOUND && response.status != Status.MOVED_PERMANENTLY)
                     // file does exist and it's not the first publication ever
-                    gh.getFile("$ga/maven-metadata.xml").valueOrNull()?.let { meta ->
-                        File(repo.url).resolve(ga).run {
+                    gh.getContent("$pathGA/maven-metadata.xml").map { meta ->
+                        File(repo.url).resolve(pathGA).run {
                             mkdirs()
                             resolve("maven-metadata.xml")
                         }.apply {
                             createNewFile()
                             writeText(meta.rawContent)
-                            verbose("meta.rawContent ${meta.rawContent}")
+                            //                            verbose("meta.rawContent ${meta.rawContent}")
                         }
                     }
                 }
             }
 
             doLast {
-                return@doLast
                 if (!proceed)
                     return@doLast
                 //                                        println(project.displayName)
 
+                val tmpBranch = "tmp"
+
                 if (!setting.dryRun.get()) {
-                    // save commit revision
-                    val rev = GET("git/refs/heads").bodyString().sha
-                    verbose("rev: $rev")
+                    // save master branch head reference
+                    //                    val sha = GET("git/refs/heads").bodyString().sha
+                    val sha = gh.gitRef.valueOrNull()!!.`object`.sha
+                    verbose("master head reference sha: $sha")
 
                     // create tmp branch via a reference
-                    POST("git/refs") {
-                        body("""{"ref": "refs/heads/tmp", "sha": "$rev"}""")
-                    }
+                    gh.createRef(tmpBranch, sha)
+                    //                    println(POST("git/refs") {
+                    //                        body("""{"ref": "refs/heads/tmp", "sha": "$sha"}""")
+                    //                    })
                 }
 
                 // create/update every file on tmp
@@ -200,16 +201,22 @@ class MagikPlugin : Plugin<Project> {
                     if (file.isFile) {
                         verbose(file)
                         if (!setting.dryRun.get()) {
+                            // file = /home/elect/IdeaProjects/single/build/repo/org/gradle/sample/prova/0.1/prova-0.1.pom.md5
+                            // path = org/gradle/sample/prova/0.1/prova-0.1.pom.md5
                             val path = file.toRelativeString(dir).replace('\\', '/')
-                            val response = GET("contents/$path", is404fine = true)
-                            val maybeSha = when (response.status) {
-                                Status.NOT_FOUND -> ""
-                                else -> """, "sha": "${response.bodyString().sha}""""
-                            }
-                            val content = Base64.getEncoder().encodeToString(file.readBytes())
-                            PUT("contents/$path") {
-                                body("""{"path": "$path", "message": "$path", "content": "$content", "branch": "tmp"$maybeSha}""")
-                            }
+
+                            //                            val response = GET("contents/$path", is404fine = true)
+                            val sha = gh.getContent(path, tmpBranch).valueOrNull()?.sha
+                            //                            val maybeSha = when (response.status) {
+                            //                                Status.NOT_FOUND -> ""
+                            //                                else -> """, "sha": "${response.bodyString().sha}""""
+                            //                            }
+                            //                            println("[$path] SHA $sha, maybeSha $maybeSha")
+                            //                            val content = Base64.getEncoder().encodeToString(file.readBytes())
+                            //                            PUT("contents/$path") {
+                            //                                body("""{"path": "$path", "message": "$path", "content": "$content", "branch": tmpBranch$maybeSha}""")
+                            //                            }
+                            gh.uploadContent(path, message = path, content = file, branch = tmpBranch, sha = sha)
                         }
                     }
                 }
@@ -217,22 +224,23 @@ class MagikPlugin : Plugin<Project> {
                 if (setting.dryRun.get())
                     return@doLast
 
-                val gav = "${publ.groupId}:${publ.artifactId}:${publ.version}"
+                val gav = publ.run { "$groupId:$artifactId:$version" }
 
                 // create the PR
-                POST("pulls") {
-                    body("""{"repo":"${gh.repo}","title":"$gav","head":"tmp","base":"master","body":"$gav"}""")
-                }
+                val pr = gh.createPR(title = gav, head = tmpBranch, base = "master").valueOrNull()!!
+                //                POST("pulls") {
+                //                    body("""{"repo":"${gh.repo}","title":"$gav","head":"$tmpBranch","base":"master","body":"$gav"}""")
+                //                }
 
                 // retrieve the PR number
-                val pr = run {
-                    // retrieve all the PRs (it should be just one) and read its number
-                    val body = GET("pulls").bodyString()
-                    val ofs = body.indexOf(""","number":""") + 10
-                    // let's give it a couple of digits, before parsing
-                    val number = body.substring(ofs, ofs + 5)
-                    number.takeWhile { it.isDigit() }.toInt()
-                }
+//                val pr = run {
+//                    // retrieve all the PRs (it should be just one) and read its number
+//                    val body = GET("pulls").bodyString()
+//                    val ofs = body.indexOf(""","number":""") + 10
+//                    // let's give it a couple of digits, before parsing
+//                    val number = body.substring(ofs, ofs + 5)
+//                    number.takeWhile { it.isDigit() }.toInt()
+//                }
 
                 // the current head on `tmp` branch
                 val lastCommit = run {
@@ -255,7 +263,8 @@ class MagikPlugin : Plugin<Project> {
     }
 }
 
-fun Project.exec(cmd: String): String = ByteArrayOutputStream().also { exec { commandLine(cmd.split(' ')); standardOutput = it; } }.toString().trim()
+fun Project.exec(cmd: String): String =
+    ByteArrayOutputStream().also { exec { commandLine(cmd.split(' ')); standardOutput = it; } }.toString().trim()
 
 val String.sha: String
     get() {
@@ -267,7 +276,8 @@ val String.sha: String
 fun RepositoryHandler.github(domain: String) = maven("https://raw.githubusercontent.com/$domain/master")
 
 /** root repositories scope */
-fun RepositoryHandler.github(owner: String, repo: String) = maven("https://raw.githubusercontent.com/$owner/$repo/master")
+fun RepositoryHandler.github(owner: String, repo: String) =
+    maven("https://raw.githubusercontent.com/$owner/$repo/master")
 
 /** publishing/repositories scope */
 fun RepositoryHandler.github(action: Action<GithubArtifactRepositoryBuilder>) {
@@ -280,7 +290,9 @@ fun RepositoryHandler.github(action: Action<GithubArtifactRepositoryBuilder>) {
     }
 }
 
-fun RepositoryHandler.githubPackages(owner: String, repo: String) = githubPackages("https://raw.githubusercontent.com/$owner/$repo/master")
+fun RepositoryHandler.githubPackages(owner: String, repo: String) =
+    githubPackages("https://raw.githubusercontent.com/$owner/$repo/master")
+
 fun RepositoryHandler.githubPackages(domain: String) {
     maven {
         // The url of the repository that contains the published artifacts
@@ -302,10 +314,11 @@ class GithubArtifactRepositoryBuilder {
     var name = "github"
     lateinit var domain: String
 }
+
 class GithubArtifactRepository(val project: Project,
                                val name: String,
                                domain: String,
-                               branch: String = "master"): GitHubRepo(domain, branch) {
+                               branch: String = "master") : GitHubRepo(domain, branch) {
     internal val repo: String by lazy { domain.substringAfter('/') }
 }
 

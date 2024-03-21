@@ -33,6 +33,7 @@ dependencies {
     implementation("org.http4k:http4k-connect")
     implementation("org.http4k:http4k-connect-github")
     implementation("org.http4k:http4k-format-moshi")
+    implementation("org.http4k:http4k-format-jackson")
 
     implementation("com.google.code.gson:gson:2.10.1")
 }
