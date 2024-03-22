@@ -26,11 +26,12 @@ dependencies {
     // Use the Kotlin JUnit integration.
     testImplementation(kotlin("test-junit"))
 
-    implementation(platform("org.http4k:http4k-bom:5.14.0.0"))
+    implementation(platform("org.http4k:http4k-bom:5.14.1.0"))
     implementation("org.http4k:http4k-core")
     implementation("org.http4k:http4k-server-undertow")
     implementation("org.http4k:http4k-client-apache")
-    implementation("org.http4k:http4k-connect")
+    implementation(platform("org.http4k:http4k-connect-bom:5.9.0.0"))
+//    implementation("org.http4k:http4k-connect")
     implementation("org.http4k:http4k-connect-github")
     implementation("org.http4k:http4k-format-moshi")
     implementation("org.http4k:http4k-format-jackson")

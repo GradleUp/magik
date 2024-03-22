@@ -1,4 +1,4 @@
-package magik
+package http4k.github
 
 import dev.forkhandles.result4k.*
 import org.http4k.base64Decoded
@@ -65,13 +65,9 @@ open class GitHubRepo(val domain: String, var branch: String = "master") {
                          val html_url: String,
                          val download_url: String,
                          val _links: _Link)
+
         val rawContent by lazy { content.replace("\n", "").base64Decoded() }
     }
-
-    // Generic
-    data class _Link(val git: String,
-                     val html: String,
-                     val self: String)
 
     // https://docs.github.com/en/rest/git/refs?apiVersion=2022-11-28#get-a-reference
 
@@ -92,15 +88,6 @@ open class GitHubRepo(val domain: String, var branch: String = "master") {
         }
     }
 
-    data class GetGitRefData(val ref: String,
-                             val node_id: String,
-                             val url: String,
-                             val `object`: Object) {
-        data class Object(val type: String,
-                          val sha: String,
-                          val url: String)
-    }
-
 
     // https://docs.github.com/en/rest/git/refs?apiVersion=2022-11-28#create-a-reference
 
@@ -118,8 +105,6 @@ open class GitHubRepo(val domain: String, var branch: String = "master") {
             else -> Failure(RemoteFailure(Method.POST, uri, response.status, response.bodyString()))
         }
     }
-
-    data class CreateRefData(val ref: String)
 
 
     // https://docs.github.com/en/rest/repos/contents?apiVersion=2022-11-28#create-or-update-file-contents
@@ -152,39 +137,6 @@ open class GitHubRepo(val domain: String, var branch: String = "master") {
             response.status.successful -> Success(responseBody(response))
             else -> Failure(RemoteFailure(Method.PUT, uri, response.status, response.bodyString()))
         }
-    }
-
-    data class UploadContentData(val content: Content,
-                                 val commit: Commit) {
-        data class Content(val name: String,
-                           val path: String,
-                           val sha: String,
-                           val size: Int,
-                           val url: String,
-                           val html_url: String,
-                           val git_url: String,
-                           val download_url: String,
-                           val type: String,
-                           val _links: _Link)
-        data class Commit(val sha: String,
-                          val node_id: String,
-                          val url: String,
-                          val html_url: String,
-                          val author: Person,
-                          val committer: Person,
-                          val message: String,
-                          val tree: Tree,
-                          val parents: Array<Parent>,
-                          val verification: Verification)
-        data class Person(val name: String, val email: String, val date: String? = null) {
-            val body by lazy { """{"name":"$name","email":"$email"${date?.let { ""","date":"$it"""" } ?: ""}}""" }
-        }
-        data class Tree(val url: String, val sha: String)
-        data class Parent(val url: String, val html_url: String, val sha: String)
-        data class Verification(val verified: Boolean,
-                                val reason: String,
-                                val signature: String?,
-                                val payload: String?)
     }
 
 
@@ -220,55 +172,6 @@ open class GitHubRepo(val domain: String, var branch: String = "master") {
         }
     }
 
-    data class PushRequest(val url: String,
-                           val id: Int,
-                           val node_id: String,
-                           val html_url: String,
-                           val diff_url: String,
-                           val patch_url: String,
-                           val issue_url: String,
-                           val commits_url: String,
-                           val review_comments_url: String,
-                           val review_comment_url: String,
-                           val comments_url: String,
-                           val statuses_url: String,
-                           val number: Int,
-                           val state: State,
-                           val locked: Boolean,
-                           val title: String,
-                           val user: User,
-                           val body: String?,
-                           val labels: Array<Label>) {
-        enum class State { open, closed }
-        data class User(val name: String?,
-                        val email: String?,
-                        val login: String,
-                        val id: Int,
-                        val node_id: String,
-                        val avatar_url: String,
-                        val gravatar_id: String,
-                        val url: String,
-                        val html_url: String,
-                        val followers_url: String,
-                        val following_url: String,
-                        val gists_url: String,
-                        val starred_url: String,
-                        val subscriptions_url: String,
-                        val organizations_url: String,
-                        val repos_url: String,
-                        val events_url: String,
-                        val received_events_url: String,
-                        val type: String,
-                        val site_admin: Boolean,
-                        val starred_at: String?)
-        data class Label(val id: Long,
-                         val node_id: String,
-                         val url: String,
-                         val name: String,
-                         val description: String,
-                         val color: String,
-                         val default: Boolean)
-    }
 
     // https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#create-a-pull-request
 
@@ -287,7 +190,71 @@ open class GitHubRepo(val domain: String, var branch: String = "master") {
         }
     }
 
-    data class PullRequests(val pullRequests: Array<PushRequest>)
+
+    // https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28#get-a-commit
+
+    infix fun getCommit(ref: String) = gitHub(GetCommit(ref))
+
+    inner class GetCommit(ref: String) : GitHubAction<CommitData> {
+        val responseBody = Body.auto<CommitData>().toLens()
+        val uri = Uri.of("$api/$domain/commits/$ref")
+
+        override fun toRequest() = Request(Method.GET, uri)
+
+        override fun toResult(response: Response) = when {
+            response.status.successful -> Success(responseBody(response))
+            else -> Failure(RemoteFailure(Method.GET, uri, response.status, response.bodyString()))
+        }
+    }
+
+
+    // https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#merge-a-pull-request
+
+    fun mergePullRequest(number: Int,
+                         commitTitle: String? = null, commitMessage: String? = null,
+                         sha: String? = null, mergeMethod: MergeMethod? = null) = gitHub(MergePullRequest(number, commitTitle, commitMessage, sha, mergeMethod))
+
+    inner class MergePullRequest(number: Int,
+                                 commitTitle: String? = null, commitMessage: String? = null,
+                                 sha: String? = null, mergeMethod: MergeMethod? = null) : GitHubAction<PullRequestMergeResult> {
+        val responseBody = Body.auto<PullRequestMergeResult>().toLens()
+        val uri = Uri.of("$api/$domain/pulls/$number/merge")
+        val body = when {
+            commitTitle == null && commitMessage == null && sha == null && mergeMethod == null -> ""
+            else -> buildString {
+                append("{")
+                commitTitle?.let { append(""""commit_title":"$it",""") }
+                commitMessage?.let { append(""""commit_message":"$it",""") }
+                sha?.let { append(""""sha":"$it",""") }
+                mergeMethod?.let { append(""""merge_method":"$it"""") }
+                append("""}""")
+            }
+        }
+
+        override fun toRequest() = Request(Method.PUT, uri)
+
+        override fun toResult(response: Response) = when {
+            response.status.successful -> Success(responseBody(response))
+            else -> Failure(RemoteFailure(Method.PUT, uri, response.status, response.bodyString()))
+        }
+    }
+
+
+    // https://docs.github.com/en/rest/git/refs?apiVersion=2022-11-28#delete-a-reference
+
+    infix fun deleteRef(ref: String) = gitHub(DeleteRef(ref))
+    infix fun deleteBranch(branch: String) = gitHub(DeleteRef("heads/$branch"))
+
+    inner class DeleteRef(ref: String) : GitHubAction<Status> {
+        val uri = Uri.of("$api/$domain/git/refs/$ref")
+
+        override fun toRequest() = Request(Method.DELETE, uri)
+
+        override fun toResult(response: Response) = when {
+            response.status.successful -> Success(response.status)
+            else -> Failure(RemoteFailure(Method.DELETE, uri, response.status, response.bodyString()))
+        }
+    }
 
     companion object {
         val api = "https://api.github.com/repos"

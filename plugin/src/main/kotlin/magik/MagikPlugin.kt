@@ -2,6 +2,8 @@ package magik
 
 import dev.forkhandles.result4k.map
 import dev.forkhandles.result4k.valueOrNull
+import http4k.github.GitHubRepo
+import http4k.github.MergeMethod
 import org.gradle.api.Action
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -16,14 +18,9 @@ import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.getByName
 import org.gradle.kotlin.dsl.maven
 import org.gradle.kotlin.dsl.register
-import org.http4k.client.Java8HttpClient
-import org.http4k.core.*
-import org.http4k.core.Method.*
 import java.io.*
 import java.net.URI
 import java.net.URL
-import java.util.*
-
 
 abstract class MagikExtension {
     abstract val commitWithChanges: Property<Boolean>
@@ -99,31 +96,6 @@ class MagikPlugin : Plugin<Project> {
             verbose("deleting first any previous local publication at ${repo.url}")
             File(repo.url).deleteRecursively()
 
-            operator fun Method.invoke(relativeUri: String, debugRequest: Boolean = false,
-                                       debugResponse: Boolean = false, is404fine: Boolean = false,
-                                       block: (Request.() -> Request)? = null): Response {
-                var request = Request(this, "https://api.github.com/repos/${gh.domain}/$relativeUri")
-                    .header("Accept", "application/vnd.github.v3+json")
-                    .header("Authorization", "token ${project.property("${gh.name}Token")!!}")
-                if (debugRequest)
-                    println(request)
-                if (block != null)
-                    request = request.block()
-                return Java8HttpClient()(request).apply {
-                    close()
-                    if (debugResponse)
-                        println(this)
-                    if (!status.successful)
-                        when {
-                            status == Status.BAD_GATEWAY -> {
-                                println("Bad Gateway, trying again..")
-                                invoke(relativeUri, debugRequest, debugResponse, is404fine, block)
-                            }
-                            status != Status.NOT_FOUND || !is404fine -> error("$status\n$request\n(${request.toCurl()}\n$this")
-                        }
-                }
-            }
-
             var proceed = true
             doFirst {
                 // check against git uncommitted changes
@@ -155,11 +127,6 @@ class MagikPlugin : Plugin<Project> {
                     // download maven-metadata.xml, if exists, to avoid overwrites the remote one and keep track of previous releases/snapshots
                     // ga = org/gradle/sample/prova
                     val pathGA = publ.groupId.replace('.', '/') + '/' + publ.artifactId
-                    //                    val request = Request(GET, "https://raw.githubusercontent.com/${gh.domain}/master/$ga/maven-metadata.xml")
-                    //                        .header("Accept", "application/vnd.github.v3+json")
-                    //                        .header("Authorization", "token ${project.property("${gh.name}Token")!!}")
-                    //                    val response = Java8HttpClient()(request)
-                    //                    if (response.status != Status.NOT_FOUND && response.status != Status.MOVED_PERMANENTLY)
                     // file does exist and it's not the first publication ever
                     gh.getContent("$pathGA/maven-metadata.xml").map { meta ->
                         File(repo.url).resolve(pathGA).run {
@@ -168,7 +135,7 @@ class MagikPlugin : Plugin<Project> {
                         }.apply {
                             createNewFile()
                             writeText(meta.rawContent)
-                            //                            verbose("meta.rawContent ${meta.rawContent}")
+                            verbose("meta.rawContent ${meta.rawContent}")
                         }
                     }
                 }
@@ -179,22 +146,18 @@ class MagikPlugin : Plugin<Project> {
                     return@doLast
                 //                                        println(project.displayName)
 
-                val tmpBranch = "tmp"
+                val magikBranch = "magik"
 
                 if (!setting.dryRun.get()) {
                     // save master branch head reference
-                    //                    val sha = GET("git/refs/heads").bodyString().sha
                     val sha = gh.gitRef.valueOrNull()!!.`object`.sha
                     verbose("master head reference sha: $sha")
 
-                    // create tmp branch via a reference
-                    gh.createRef(tmpBranch, sha)
-                    //                    println(POST("git/refs") {
-                    //                        body("""{"ref": "refs/heads/tmp", "sha": "$sha"}""")
-                    //                    })
+                    // create magik branch via a reference
+                    gh.createRef(magikBranch, sha)
                 }
 
-                // create/update every file on tmp
+                // create/update every file on magik branch
                 val dir = File(repo.url)
                 verbose("dir: $dir")
                 dir.walk().forEach { file ->
@@ -205,18 +168,8 @@ class MagikPlugin : Plugin<Project> {
                             // path = org/gradle/sample/prova/0.1/prova-0.1.pom.md5
                             val path = file.toRelativeString(dir).replace('\\', '/')
 
-                            //                            val response = GET("contents/$path", is404fine = true)
-                            val sha = gh.getContent(path, tmpBranch).valueOrNull()?.sha
-                            //                            val maybeSha = when (response.status) {
-                            //                                Status.NOT_FOUND -> ""
-                            //                                else -> """, "sha": "${response.bodyString().sha}""""
-                            //                            }
-                            //                            println("[$path] SHA $sha, maybeSha $maybeSha")
-                            //                            val content = Base64.getEncoder().encodeToString(file.readBytes())
-                            //                            PUT("contents/$path") {
-                            //                                body("""{"path": "$path", "message": "$path", "content": "$content", "branch": tmpBranch$maybeSha}""")
-                            //                            }
-                            gh.uploadContent(path, message = path, content = file, branch = tmpBranch, sha = sha)
+                            val sha = gh.getContent(path, magikBranch).valueOrNull()?.sha
+                            gh.uploadContent(path, message = path, content = file, branch = magikBranch, sha = sha)
                         }
                     }
                 }
@@ -227,35 +180,16 @@ class MagikPlugin : Plugin<Project> {
                 val gav = publ.run { "$groupId:$artifactId:$version" }
 
                 // create the PR
-                val pr = gh.createPR(title = gav, head = tmpBranch, base = "master").valueOrNull()!!
-                //                POST("pulls") {
-                //                    body("""{"repo":"${gh.repo}","title":"$gav","head":"$tmpBranch","base":"master","body":"$gav"}""")
-                //                }
+                val pr = gh.createPR(title = gav, head = magikBranch, base = "master").valueOrNull()!!
 
-                // retrieve the PR number
-//                val pr = run {
-//                    // retrieve all the PRs (it should be just one) and read its number
-//                    val body = GET("pulls").bodyString()
-//                    val ofs = body.indexOf(""","number":""") + 10
-//                    // let's give it a couple of digits, before parsing
-//                    val number = body.substring(ofs, ofs + 5)
-//                    number.takeWhile { it.isDigit() }.toInt()
-//                }
-
-                // the current head on `tmp` branch
-                val lastCommit = run {
-                    val body = GET("commits/tmp").bodyString()
-                    val ofs = body.indexOf("\"sha\":\"") + 7
-                    body.substring(ofs, ofs + 40)
-                }
+                // the current head on `magik` branch
+                val magikSha = gh.getCommit(magikBranch).valueOrNull()!!.sha
 
                 // we have now everything to merge the PR
-                PUT("pulls/$pr/merge") {
-                    body("""{"repo":"${gh.repo}","pull_number":"$pr","commit_title":"$gav","sha":"$lastCommit","merge_method":"squash"}""")
-                }
+                println(gh.mergePullRequest(pr.number, commitTitle = gav, sha = magikSha, mergeMethod = MergeMethod.squash))
 
-                // delete the tmp branch
-                DELETE("git/refs/heads/tmp")
+                // delete the magik branch
+                gh.deleteBranch(magikBranch)
 
                 println("$gav published on ${gh.domain}!")
             }
@@ -265,12 +199,6 @@ class MagikPlugin : Plugin<Project> {
 
 fun Project.exec(cmd: String): String =
     ByteArrayOutputStream().also { exec { commandLine(cmd.split(' ')); standardOutput = it; } }.toString().trim()
-
-val String.sha: String
-    get() {
-        val ofs = indexOf("\"sha\":\"") + 7
-        return substring(ofs, ofs + 40)
-    }
 
 /** root repositories scope */
 fun RepositoryHandler.github(domain: String) = maven("https://raw.githubusercontent.com/$domain/master")
