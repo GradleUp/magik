@@ -182,11 +182,11 @@ class MagikPlugin : Plugin<Project> {
                 // create the PR
                 val pr = gh.createPR(title = gav, head = magikBranch, base = "master").valueOrNull()!!
 
-                // the current head on `magik` branch
+                // get current head on `magik` branch for the merge
                 val magikSha = gh.getCommit(magikBranch).valueOrNull()!!.sha
 
                 // we have now everything to merge the PR
-                println(gh.mergePullRequest(pr.number, commitTitle = gav, sha = magikSha, mergeMethod = MergeMethod.squash))
+                gh.mergePullRequest(pr.number, commitTitle = gav, sha = magikSha, mergeMethod = MergeMethod.squash)
 
                 // delete the magik branch
                 gh.deleteBranch(magikBranch)
