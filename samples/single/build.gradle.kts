@@ -7,8 +7,8 @@ plugins {
     `maven-publish`
 }
 
-group = "org.example"
-version = "1.0-SNAPSHOT"
+group = "magik"
+version = "1.0"
 
 repositories { mavenCentral() }
 
@@ -30,10 +30,6 @@ publishing {
         // createGithubPublication("my-name")
         createGithubPublication {
             // if your project already defines `groupId`, `artifactId` and `version`, then you can skip these here
-            groupId = "org.gradle.sample"
-            artifactId = "prova"
-            version = "0.1"
-
             from(components["java"])
         }
     }
